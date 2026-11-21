@@ -1,6 +1,6 @@
 // ==============================================================================
-// GARASIKU — Prisma Schema for Supabase PostgreSQL
-// Relational Database Model for LSP Pemrogram Certification (UK 6)
+// GARENT (Garage Rental) — Prisma Schema for Supabase PostgreSQL
+// Relational Database Model for LSP Pemrogram Certification
 // ==============================================================================
 
 generator client {
@@ -14,148 +14,90 @@ datasource db {
 }
 
 // ------------------------------------------------------------------------------
-// Enums
+// Model 1: User (Tabel 'users')
 // ------------------------------------------------------------------------------
-
-enum Role {
-  ADMIN
-  PENYEWA
-}
-
-enum StatusVerifikasi {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum TipeGarasi {
-  SEPEDA
-  MOBIL
-  MOBIL_LISTRIK
-}
-
-enum StatusGarasi {
-  AVAILABLE
-  USED
-}
-
-enum TipeKendaraan {
-  SEPEDA
-  SEPEDA_MOTOR
-  MOBIL
-  MOBIL_LISTRIK
-}
-
-enum TipeSewa {
-  HARIAN
-  BULANAN
-}
-
-// ------------------------------------------------------------------------------
-// Models (5 Normalized Relational Tables)
-// ------------------------------------------------------------------------------
-
-/// Model User: Menyimpan data Admin dan Penyewa dengan verifikasi KTP/NIK
 model User {
-  id               String           @id @default(uuid())
-  email            String           @unique
-  passwordHash     String
-  role             Role             @default(PENYEWA)
-  nik              String?          @unique // Wajib untuk Penyewa (16 digit), opsional untuk Admin
-  namaLengkap      String
-  noTelepon        String
-  statusVerifikasi StatusVerifikasi @default(PENDING)
-  verifiedById     String?
-  createdAt        DateTime         @default(now())
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  passwordHash       String             @map("password_hash")
+  role               String             @default("penyewa") // 'admin' | 'penyewa'
+  nik                String?            @unique
+  fullName           String             @map("full_name")
+  phoneNumber        String             @map("phone_number")
+  verificationStatus String             @default("pending") @map("verification_status") // 'pending' | 'approved' | 'rejected'
+  createdAt          DateTime           @default(now()) @map("created_at")
 
-  // Relasi self-relation untuk Admin yang memverifikasi akun
-  verifiedBy       User?            @relation("UserVerification", fields: [verifiedById], references: [id], onDelete: SetNull)
-  verifiedUsers    User[]           @relation("UserVerification")
+  rentals            Rental[]
+  rentalExtensions   RentalExtension[]
 
-  // Relasi ke transaksi sewa yang dimiliki oleh penyewa
-  transaksiSewa    TransaksiSewa[]
-
-  // Relasi ke perpanjangan sewa yang diproses oleh admin
-  perpanjanganSewa PerpanjanganSewa[]
-
-  @@index([role, statusVerifikasi])
   @@map("users")
 }
 
-/// Model Garasi: Menyimpan inventaris garasi dengan kode unik (S001, C001, E001)
-model Garasi {
-  id                 String          @id @default(uuid())
-  kodeGarasi         String          @unique // S001..S999, C001..C999, E001..E999
-  tipeGarasi         TipeGarasi
-  nomorUrut          Int             // 1..999
-  hargaSewaHarian    Decimal         @db.Decimal(12, 2)
-  hargaListrikPerKwh Decimal?        @db.Decimal(10, 2) // Hanya untuk tipe MOBIL_LISTRIK
-  status             StatusGarasi    @default(AVAILABLE)
-  createdAt          DateTime        @default(now())
+// ------------------------------------------------------------------------------
+// Model 2: Garage (Tabel 'garages')
+// ------------------------------------------------------------------------------
+model Garage {
+  id             String          @id @default(uuid())
+  code           String          @unique // S001..S999, C001..C999, E001..E999
+  type           String          // 'sepeda' | 'mobil' | 'mobil_listrik'
+  sequenceNumber Int             @map("sequence_number") // 1..999
+  dailyPrice     Decimal         @db.Decimal(12, 2) @map("daily_price")
+  kwhPrice       Decimal?        @db.Decimal(10, 2) @map("kwh_price")
+  status         String          @default("available") @map("status") // 'available' | 'used'
+  createdAt      DateTime        @default(now()) @map("created_at")
 
-  transaksiSewa      TransaksiSewa[]
+  rentals        Rental[]
 
-  @@unique([tipeGarasi, nomorUrut])
-  @@index([tipeGarasi, status])
-  @@map("garasi")
+  @@unique([type, sequenceNumber])
+  @@map("garages")
 }
 
-/// Model Kendaraan: Menyimpan detail spesifikasi kendaraan yang disewakan garasi
-model Kendaraan {
-  id                  String         @id @default(uuid())
-  tipeKendaraan       TipeKendaraan
-  nomorPlat           String?        // Nullable hanya untuk SEPEDA
-  merekTipe           String
-  kapasitasListrikKwh Decimal?       @db.Decimal(6, 2) // Wajib > 0 untuk MOBIL_LISTRIK
-
-  transaksiSewa       TransaksiSewa?
-
-  @@map("kendaraan")
-}
-
-/// Model TransaksiSewa: Transaksi atomic penyewaan garasi oleh Penyewa terverifikasi
-model TransaksiSewa {
+// ------------------------------------------------------------------------------
+// Model 3: Rental (Tabel 'rentals')
+// ------------------------------------------------------------------------------
+model Rental {
   id                 String             @id @default(uuid())
-  penyewaId          String
-  garasiId           String
-  kendaraanId        String             @unique
-  tipeSewa           TipeSewa
-  jumlahHari         Int?               // 1..30 untuk HARIAN, null untuk BULANAN
-  tanggalMulai       DateTime           @db.Date
-  tanggalSelesai     DateTime           @db.Date
-  biayaSewa          Decimal            @db.Decimal(12, 2)
-  biayaListrik       Decimal            @default(0) @db.Decimal(12, 2)
-  totalBiaya         Decimal            @db.Decimal(12, 2)
-  buktiPelunasanUrl  String
-  createdAt          DateTime           @default(now())
+  userId             String             @map("user_id")
+  garageId           String             @map("garage_id")
+  vehicleType        String             @map("vehicle_type") // 'sepeda' | 'sepeda_motor' | 'mobil' | 'mobil_listrik'
+  plateNumber        String?            @map("plate_number")
+  vehicleBrandType   String             @map("vehicle_brand_type")
+  maxBatteryKwh      Decimal?           @db.Decimal(6, 2) @map("max_battery_kwh")
+  currentBatteryKwh  Decimal?           @db.Decimal(6, 2) @map("current_battery_kwh")
+  rentalType         String             @map("rental_type") // 'harian' | 'bulanan'
+  durationDays       Int                @map("duration_days")
+  startDate          DateTime           @db.Date @map("start_date")
+  endDate            DateTime           @db.Date @map("end_date")
+  rentalCost         Decimal            @db.Decimal(12, 2) @map("rental_cost")
+  electricityCost    Decimal            @default(0) @db.Decimal(12, 2) @map("electricity_cost")
+  totalCost          Decimal            @db.Decimal(12, 2) @map("total_cost")
+  paymentProofUrl    String             @map("payment_proof_url")
+  status             String             @default("active") @map("status") // 'active' | 'completed' | 'extended'
+  createdAt          DateTime           @default(now()) @map("created_at")
 
-  penyewa            User               @relation(fields: [penyewaId], references: [id], onDelete: Restrict)
-  garasi             Garasi             @relation(fields: [garasiId], references: [id], onDelete: Restrict)
-  kendaraan          Kendaraan          @relation(fields: [kendaraanId], references: [id], onDelete: Restrict)
-  perpanjanganList   PerpanjanganSewa[]
+  user               User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  garage             Garage             @relation(fields: [garageId], references: [id], onDelete: Restrict)
+  extensions         RentalExtension[]
 
-  @@index([penyewaId])
-  @@index([garasiId])
-  @@index([tanggalMulai, tanggalSelesai])
-  @@map("transaksi_sewa")
+  @@map("rentals")
 }
 
-/// Model PerpanjanganSewa: Riwayat perpanjangan sewa garasi yang diproses oleh Admin
-model PerpanjanganSewa {
-  id                 String        @id @default(uuid())
-  transaksiSewaId    String
-  adminId            String
-  tanggalSelesaiLama DateTime      @db.Date
-  tanggalSelesaiBaru DateTime      @db.Date
-  tambahanHari       Int
-  sisaBiaya          Decimal       @db.Decimal(12, 2)
-  buktiBayarUrl      String
-  createdAt          DateTime      @default(now())
+// ------------------------------------------------------------------------------
+// Model 4: RentalExtension (Tabel 'rental_extensions')
+// ------------------------------------------------------------------------------
+model RentalExtension {
+  id                 String             @id @default(uuid())
+  rentalId           String             @map("rental_id")
+  adminId            String             @map("admin_id")
+  oldEndDate         DateTime           @db.Date @map("old_end_date")
+  newEndDate         DateTime           @db.Date @map("new_end_date")
+  additionalDays     Int                @map("additional_days")
+  additionalCost     Decimal            @db.Decimal(12, 2) @map("additional_cost")
+  paymentProofUrl    String             @map("payment_proof_url")
+  createdAt          DateTime           @default(now()) @map("created_at")
 
-  transaksiSewa      TransaksiSewa @relation(fields: [transaksiSewaId], references: [id], onDelete: Cascade)
-  admin              User          @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  rental             Rental             @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  admin              User               @relation(fields: [adminId], references: [id], onDelete: Restrict)
 
-  @@index([transaksiSewaId])
-  @@index([adminId])
-  @@map("perpanjangan_sewa")
+  @@map("rental_extensions")
 }

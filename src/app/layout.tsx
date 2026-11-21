@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GARASIKU — Sistem Penyewaan Garasi Kendaraan",
+  title: "GARENT — Sistem Penyewaan Garasi Kendaraan (Garage Rental)",
   description:
-    "Aplikasi operasional penyewaan garasi multi-tipe kendaraan, kalkulasi transparan, verifikasi KTP, dan pelaporan pendapatan.",
+    "GARENT (Garage Rental) — Aplikasi operasional penyewaan garasi multi-tipe kendaraan, kalkulasi transparan, verifikasi KTP, dan pelaporan pendapatan.",
 };
 
 export default function RootLayout({

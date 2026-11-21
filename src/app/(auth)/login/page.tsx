@@ -59,10 +59,10 @@ export default function LoginPage() {
             G
           </div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
-            Masuk ke Sistem GARASIKU
+            Masuk ke Sistem GARENT
           </h1>
           <p className="text-xs text-slate-500">
-            Sistem Operasional Penyewaan Garasi & Pengisian Baterai EV
+            Sistem Operasional GARENT (Garage Rental) & Pengisian Baterai EV
           </p>
         </div>
 

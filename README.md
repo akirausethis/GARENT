@@ -1,243 +1,257 @@
-# GARASIKU — Sistem Penyewaan Garasi Kendaraan
+# GARENT (Garage Rental) — Sistem Penyewaan Garasi Kendaraan & Pengisian EV
 
-> **Full-Stack Web Application with Supabase, Prisma ORM & Relational Database**  
-> Dibuat untuk pemenuhan standar Uji Sertifikasi Kompetensi BNSP / LSP Pemrogram (FR.IA.04A — 9 Unit Kompetensi).
-
-[![Next.js](https://img.shields.io/badge/Next.js-15.1.7-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7.3-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-6.4.1-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com/)
-[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4.17-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/Vitest-38%20Tests%20Passing-6E9F18?style=flat-square&logo=vitest)](https://vitest.dev/)
+> **Nama Proyek:** **GARENT** (*Garage Rental*)  
+> **Skema Uji Kompetensi:** LSP Pemrogram (Sistem Berbasis Web & Object-Oriented Programming)  
+> **Teknologi Utama:** Next.js 15 (App Router, TypeScript Strict), Tailwind CSS, Supabase (PostgreSQL + Storage `payment-proofs`), Prisma ORM, Vitest.
 
 ---
 
-## 1. Visi Produk & Janji Layanan
+## 📌 Ringkasan Proyek
 
-**GARASIKU** adalah platform operasional manajemen fasilitas penyewaan garasi multi-tipe kendaraan (Sepeda/Motor, Mobil Bensin, dan Mobil Listrik dengan bay pengisian daya baterai).
-
-### Prinsip Operasional Inti
-$$\text{Verify Identity} \longrightarrow \text{Match Vehicle \& Bay} \longrightarrow \text{Calculate Transparently} \longrightarrow \text{Commit Atomically} \longrightarrow \text{Audit \& Report}$$
-
-**Janji Produk:**
-> *"Transparan, akurat, dan terverifikasi dari pendaftaran hingga laporan."*
+**GARENT** (*Garage Rental*) adalah platform persewaan garasi kendaraan multi-tipe (Sepeda/Sepeda Motor, Mobil Bensin, Mobil Listrik/EV) yang dirancang dengan standar arsitektur perangkat lunak industri:
+1. **Pemrograman Berorientasi Objek (OOP) & Clean Architecture:** Seluruh logika bisnis dipisahkan ke dalam *Service Classes* terdedikasi di folder `src/services/` (`GarageService`, `RentalService`, `AuthService`) lengkap dengan dokumentasi JSDoc/TSDoc.
+2. **Kesesuaian Basis Data Relasional:** File `supabase/schema.sql` memuat seluruh struktur DDL tabel relasional (`users`, `garages`, `rentals`, `rental_extensions`), seeder default admin, dan konfigurasi bucket Supabase Storage `payment-proofs`.
+3. **Kalkulasi Bisnis Presisi:** Mendukung sewa harian (1–29 hari), sewa bulanan promo 25&times; tarif harian, kalkulasi pengisian daya listrik penuh (*mandatory full charge*) untuk mobil listrik di garasi EV, dan perpanjangan sewa otomatis.
+4. **Unit Testing 100%:** Suite pengujian unit komprehensif menggunakan Vitest mencakup 62 skenario pengujian dengan hasil 100% lulus.
 
 ---
 
-## 2. Pemenuhan 9 Unit Kompetensi (UK) LSP Pemrogram (BNSP FR.IA.04A)
+## 🗄️ Struktur Basis Data Supabase (`supabase/schema.sql`)
 
-Aplikasi ini dibangun secara ketat agar asesor sertifikasi dapat meninjau implementasi konkret dari setiap unit kompetensi:
+Struktur tabel relasional yang digunakan dalam sistem GARENT:
 
-| No | Kode UK | Judul Unit Kompetensi | File Implementasi dalam Repositori |
-|---|---|---|---|
-| 1 | **J.620100.004.01** | Mengidentifikasi Elemen Pemasaran / Kebutuhan Bisnis | [`src/domain/types.ts`](file:///c:/Users/LENOVO/garasiku/src/domain/types.ts), [`src/app/page.tsx`](file:///c:/Users/LENOVO/garasiku/src/app/page.tsx) — Pemisahan peran Penyewa & Admin, model bisnis sewa multi-tipe, dan kalkulasi transparan. |
-| 2 | **J.620100.005.02** | Menerapkan Perintah Bahasa Pemrograman Tingkat Lanjut (Clean Code) | Seluruh kode di bawah [`src/`](file:///c:/Users/LENOVO/garasiku/src/) — Strict mode TypeScript, null safety, type narrowing, zero `any`, async/await deterministik. |
-| 3 | **J.620100.016.01** | Membuat Program Terstruktur | [`src/domain/services/GaragePricingService.ts`](file:///c:/Users/LENOVO/garasiku/src/domain/services/GaragePricingService.ts), [`src/domain/services/GarageCodeGenerator.ts`](file:///c:/Users/LENOVO/garasiku/src/domain/services/GarageCodeGenerator.ts) — Modularisasi algoritma, penomoran sekuensial S/C/E, normalisasi tanggal. |
-| 4 | **J.620100.017.02** | Mengimplementasikan Pemrograman Berorientasi Objek (OOP) | **Enkapsulasi**: [`GarasiEntity.ts`](file:///c:/Users/LENOVO/garasiku/src/domain/entities/GarasiEntity.ts) (private fields, getters, setters)<br>**Pewarisan (Inheritance)**: [`GarasiMobilListrikEntity.ts`](file:///c:/Users/LENOVO/garasiku/src/domain/entities/GarasiMobilListrikEntity.ts)<br>**Abstraksi & Polimorfisme**: [`IPricingCalculator.ts`](file:///c:/Users/LENOVO/garasiku/src/domain/services/IPricingCalculator.ts) |
-| 5 | **J.620100.019.02** | Menggunakan Library atau Komponen Pre-Existing | [`package.json`](file:///c:/Users/LENOVO/garasiku/package.json) — Prisma ORM, Supabase JS, bcryptjs, jose, zod, lucide-react, Tailwind CSS. |
-| 6 | **J.620100.022.02** | Mengakses Basis Data Relasional | [`prisma/schema.prisma`](file:///c:/Users/LENOVO/garasiku/prisma/schema.prisma), [`src/lib/prisma.ts`](file:///c:/Users/LENOVO/garasiku/src/lib/prisma.ts) — 5 tabel relasional dengan Foreign Key, Enums, Indeks, dan `prisma.$transaction`. |
-| 7 | **J.620100.025.02** | Membuat Dokumentasi Program | Dokumentasi lengkap TSDoc / JSDoc pada setiap file domain, kelas, metode, API endpoint, serta file README ini. |
-| 8 | **J.620100.030.02** | Mengimplementasikan Penanganan Kesalahan (Error Handling) | [`src/domain/errors/index.ts`](file:///c:/Users/LENOVO/garasiku/src/domain/errors/index.ts), [`src/lib/api-response.ts`](file:///c:/Users/LENOVO/garasiku/src/lib/api-response.ts) — Hierarchy class domain errors (`ValidationError`, `CompatibilityError`, `CapacityExceededError`, `ConflictError`). |
-| 9 | **J.620100.033.02** | Melaksanakan Pengujian Perangkat Lunak | [`src/tests/`](file:///c:/Users/LENOVO/garasiku/src/tests/) — 38 unit test Vitest berbasis Boundary Value Analysis (BVA) dan pola AAA (Arrange-Act-Assert). |
+```mermaid
+erDiagram
+    users ||--o{ rentals : "melakukan sewa"
+    users ||--o{ rental_extensions : "memproses perpanjangan (admin)"
+    garages ||--o{ rentals : "disewa pada"
+    rentals ||--o{ rental_extensions : "memiliki perpanjangan"
 
----
+    users {
+        uuid id PK
+        string email UK
+        string password_hash
+        string role "admin | penyewa"
+        string nik UK "16 digit KTP"
+        string full_name
+        string phone_number
+        string verification_status "pending | approved | rejected"
+        timestamp created_at
+    }
 
-## 3. Daftar Komponen / Library Pre-Existing (Untuk Form LSP 2d)
+    garages {
+        uuid id PK
+        string code UK "S001..S999, C001..C999, E001..E999"
+        string type "sepeda | mobil | mobil_listrik"
+        int sequence_number "1..999 per tipe"
+        decimal daily_price
+        decimal kwh_price "Khusus mobil_listrik"
+        string status "available | used"
+        timestamp created_at
+    }
 
-| Nama Library / Package | Versi | Lisensi | Fungsi dalam Sistem GARASIKU |
-|---|---|---|---|
-| `next` | `15.1.7` | MIT | Framework React full-stack dengan App Router, Server Components, dan Middleware. |
-| `react` & `react-dom` | `19.0.0` | MIT | Library inti untuk antarmuka deklaratif berbasis komponen. |
-| `@prisma/client` & `prisma` | `6.4.1` | Apache-2.0 | Object-Relational Mapping (ORM) tipe aman untuk Supabase PostgreSQL. |
-| `@supabase/supabase-js` | `2.49.1` | MIT | Client library untuk upload dan manajemen berkas bukti bayar ke Supabase Storage. |
-| `bcryptjs` | `3.0.2` | MIT | Enkripsi hashing kata sandi satu arah yang aman dengan cost factor $\ge 10$. |
-| `jose` | `6.0.8` | Panva | Penandatanganan dan verifikasi token sesi JWT pada HTTP-only Signed Cookies. |
-| `zod` | `3.24.2` | MIT | Skema validasi data masukan API dan formulir di sisi server. |
-| `tailwindcss` | `3.4.17` | MIT | Utility-first CSS framework untuk styling komponen anti-AI-slop. |
-| `lucide-react` | `0.475.0` | ISC | Ikonografi vektor minimalis (stroke 1.5px) pengganti emoji. |
-| `vitest` | `3.0.6` | MIT | Test runner modern berbasis ESM untuk unit testing deterministik. |
+    rentals {
+        uuid id PK
+        uuid user_id FK
+        uuid garage_id FK
+        string vehicle_type "sepeda | sepeda_motor | mobil | mobil_listrik"
+        string plate_number "Wajib non-sepeda"
+        string vehicle_brand_type
+        decimal max_battery_kwh "Khusus mobil_listrik"
+        decimal current_battery_kwh "Khusus mobil_listrik"
+        string rental_type "harian | bulanan"
+        int duration_days "1-29 (harian) atau 30 (bulanan)"
+        date start_date
+        date end_date
+        decimal rental_cost
+        decimal electricity_cost
+        decimal total_cost
+        string payment_proof_url
+        string status "active | extended | completed"
+        timestamp created_at
+    }
 
----
-
-## 4. Arsitektur Basis Data Relasional (Supabase PostgreSQL via Prisma)
-
-Sistem menggunakan 5 tabel normalisasi dengan integritas referensial ketat:
-
-```
-+--------------------+       1:N       +------------------------+       1:N       +-------------------------+
-|       users        | <-------------> |     transaksi_sewa     | <-------------> |    perpanjangan_sewa    |
-+--------------------+                 +------------------------+                 +-------------------------+
-| id (PK)            |                 | id (PK)                |                 | id (PK)                 |
-| email (UK)         |                 | penyewaId (FK -> User) |                 | transaksiSewaId (FK)    |
-| passwordHash       |                 | garasiId (FK -> Garasi)|                 | adminId (FK -> User)    |
-| role (Enum)        |                 | kendaraanId (FK, UK)   |                 | tanggalSelesaiLama      |
-| nik (UK, Nullable) |                 | tipeSewa (Enum)        |                 | tanggalSelesaiBaru      |
-| namaLengkap        |                 | jumlahHari (Nullable)  |                 | tambahanHari            |
-| noTelepon          |                 | tanggalMulai           |                 | sisaBiaya (Decimal)     |
-| statusVerifikasi   |                 | tanggalSelesai         |                 | buktiBayarUrl           |
-| verifiedById (FK)  |                 | biayaSewa (Decimal)    |                 | createdAt               |
-| createdAt          |                 | biayaListrik (Decimal) |                 +-------------------------+
-+--------------------+                 | totalBiaya (Decimal)   |
-                                       | buktiPelunasanUrl      |
-                                       | createdAt              |
-                                       +------------------------+
-                                                    |
-                                    +---------------+---------------+
-                                    |                               |
-                                1:N v                           1:1 v
-                      +-------------------+           +-----------------------+
-                      |      garasi       |           |       kendaraan       |
-                      +-------------------+           +-----------------------+
-                      | id (PK)           |           | id (PK)               |
-                      | kodeGarasi (UK)   |           | tipeKendaraan (Enum)  |
-                      | tipeGarasi (Enum) |           | nomorPlat (Nullable)  |
-                      | nomorUrut (Int)   |           | merekTipe             |
-                      | hargaSewaHarian   |           | kapasitasListrikKwh   |
-                      | hargaListrikPerKwh|           +-----------------------+
-                      | status (Enum)     |
-                      | createdAt         |
-                      +-------------------+
+    rental_extensions {
+        uuid id PK
+        uuid rental_id FK
+        uuid admin_id FK
+        date old_end_date
+        date new_end_date
+        int additional_days
+        decimal additional_cost
+        string payment_proof_url
+        timestamp created_at
+    }
 ```
 
----
-
-## 5. Aturan Bisnis & Rumus Baku Perhitungan
-
-### A. Matriks Kompatibilitas Kendaraan & Garasi
-- `SEPEDA` & `SEPEDA_MOTOR` $\longrightarrow$ **HANYA** Garasi `SEPEDA` (Prefix **S**).
-- `MOBIL` (Bensin) $\longrightarrow$ **HANYA** Garasi `MOBIL` (Prefix **C**).
-- `MOBIL_LISTRIK` $\longrightarrow$ Garasi `MOBIL` (Prefix **C**) **ATAU** Garasi `MOBIL_LISTRIK` (Prefix **E**).
-
-### B. Penomoran Sekuensial Otomatis (Auto-Increment)
-- Garasi Sepeda: `S001` s/d `S999`
-- Garasi Mobil Bensin: `C001` s/d `C999` (contoh garasi ke-10 adalah `C010`)
-- Garasi Mobil Listrik: `E001` s/d `E999`
-- Batas kuantitas per jenis garasi: strictly **$\le 999$**. Melebihi batas melempar `CapacityExceededError`.
-
-### C. Rumus Perhitungan Biaya
-- **Sewa Harian**:
-  $$\text{Biaya Sewa} = \text{jumlah\_hari} \times \text{harga\_sewa\_harian} \quad (1 \le \text{jumlah\_hari} \le 30)$$
-- **Sewa Bulanan**:
-  $$\text{Biaya Sewa} = 25 \times \text{harga\_sewa\_harian}$$
-- **Pengisian Listrik EV (Mandatory Full Charging)**:
-  - Jika `MOBIL_LISTRIK` menyewa garasi `MOBIL_LISTRIK` (E):
-    $$\text{Biaya Listrik} = \text{kapasitas\_listrik\_kwh} \times \text{harga\_listrik\_per\_kwh}$$
-  - Jika `MOBIL_LISTRIK` menyewa garasi reguler `MOBIL` (C) atau kendaraan non-EV:
-    $$\text{Biaya Listrik} = 0$$
-- **Total Biaya**:
-  $$\text{Total Biaya} = \text{Biaya Sewa} + \text{Biaya Listrik}$$
-
-### D. Perhitungan Perpanjangan Sewa
-- $\text{tanggal\_selesai\_baru} > \text{tanggal\_selesai\_lama}$ (strictly greater)
-- $\text{tambahan\_hari} = \text{tanggal\_selesai\_baru} - \text{tanggal\_selesai\_lama} > 0$
-- $\text{sisa\_biaya} = \text{tambahan\_hari} \times \text{harga\_sewa\_harian} > 0$
+### 🚀 Cara Menjalankan SQL di Supabase:
+1. Buka dashboard proyek Supabase Anda.
+2. Masuk ke menu **SQL Editor**.
+3. Buka file `supabase/schema.sql` pada repositori ini, salin seluruh kodenya, lalu tempel (*paste*) dan klik **Run**.
+4. Skema 4 tabel, seeder default admin, dan bucket Storage `payment-proofs` akan langsung siap digunakan.
 
 ---
 
-## 6. Akun Bawaan / Demo Seed (Untuk Asesor LSP)
+## 🎯 Spesifikasi & Aturan Bisnis GARENT
 
-Database seed menyertakan akun siap pakai untuk pengujian:
+### 1. Role & Hak Akses Pengguna
+- **Admin:** Memiliki akses ke `/admin/garasi` (pembuatan garasi massal), `/admin/verifikasi` (antrean pendaftar baru), `/admin/perpanjang` (perpanjangan sewa aktif), dan `/admin/laporan` (rekapitulasi 4 dimensi).
+- **Penyewa:** Mendaftar dengan NIK (16 digit), Nama, No. Telepon, Email, Password. Status awal `pending` dan wajib diverifikasi Admin sebelum diizinkan menyewa garasi.
 
-| Peran (Role) | Email | Kata Sandi | Status Verifikasi | Keterangan |
-|---|---|---|---|---|
-| **ADMIN** | `admin@garasi.com` | `Admin123!` | `APPROVED` | Pengelola fasilitas, buat batch garasi, approve/reject KTP, perpanjangan, laporan. |
-| **PENYEWA (Disetujui)** | `budi@gmail.com` | `Penyewa123!` | `APPROVED` | NIK: `3171012345670001`. Dapat langsung menyewa garasi, kalkulasi live, upload bukti. |
-| **PENYEWA (Pending)** | `siti@gmail.com` | `Penyewa123!` | `PENDING` | NIK: `3273019876540002`. Akun baru mendaftar; login ditolak dengan alert informatif hingga disetujui Admin. |
+### 2. Admin — Buat Garasi Baru (Bulk Create)
+- Pembuatan massal per tipe: `sepeda`, `mobil`, `mobil_listrik`.
+- Batas maksimal pembuatan per tipe adalah **999 unit**.
+- ID/Kode Garasi dibuat otomatis (*incremental*): `S001, S002` (Sepeda); `C001, C002` (Mobil); `E001, E002` (Mobil Listrik).
+- Sistem selalu mengecek nomor urut terakhir di database agar tidak bentrok.
+- Khusus tipe `mobil_listrik`, wajib menyertakan input **Harga Isi Listrik per kWh**.
 
----
+### 3. Penyewa — Sewa Baru Garasi Kendaraan
+- Satu penyewa dapat menyewa lebih dari satu garasi secara bersamaan (1 pengguna banyak kendaraan).
+- **Detail Kendaraan:**
+  - Tipe: `sepeda`, `sepeda_motor`, `mobil`, `mobil_listrik`.
+  - Nomor Plat: disembunyikan / opsional untuk `sepeda`, wajib untuk tipe lainnya.
+  - Merek & Tipe Kendaraan.
+  - Khusus `mobil_listrik`: Wajib mengisi `max_battery_kwh` dan `current_battery_kwh` dengan validasi mutlak `current_battery_kwh <= max_battery_kwh`.
+- **Matriks Kompatibilitas Garasi vs Kendaraan:**
+  - `sepeda` & `sepeda_motor` $\rightarrow$ **HANYA** Garasi Sepeda (`S`).
+  - `mobil` $\rightarrow$ **HANYA** Garasi Mobil (`C`).
+  - `mobil_listrik` $\rightarrow$ Bisa memilih Garasi Mobil (`C`) atau Garasi Mobil Listrik (`E`).
+- **Durasi & Tarif:**
+  - Tanggal Mulai sewa otomatis hari ini.
+  - **Sewa Harian:** 1 sampai 29 hari ($jumlah\_hari \times daily\_price$).
+  - **Sewa Bulanan:** 30 hari, harga promo flat $25 \times daily\_price$ (hemat 5 hari). Tanggal selesai mengikuti tanggal yang sama di bulan berikutnya.
+- **Biaya Isi Listrik:**
+  - Jika `mobil_listrik` masuk Garasi E: Wajib isi penuh. Biaya listrik = $(max\_battery\_kwh - current\_battery\_kwh) \times kwh\_price$.
+  - Jika masuk Garasi C: Biaya listrik = Rp 0.
+- **Unggah Bukti Bayar:** Penyewa wajib mengunggah gambar struk pelunasan ke Supabase Storage bucket `payment-proofs`. Status garasi langsung beralih menjadi `used`.
 
-## 7. Panduan Instalasi & Menjalankan Aplikasi
+### 4. Admin — Perpanjang Status Garasi (Extension)
+- Menampilkan seluruh garasi yang sedang berstatus aktif hari ini.
+- Admin bebas menentukan Tanggal Selesai Baru ($new\_end\_date > old\_end\_date$).
+- Sistem menghitung sisa biaya tambahan secara otomatis: $selisih\_hari \times daily\_price$.
+- Admin wajib mengunggah gambar bukti bayar perpanjangan, data disimpan ke tabel `rental_extensions`, dan `end_date` tabel `rentals` diperbarui secara atomik.
 
-### Prasyarat
-- Node.js versi $\ge 18.18$ atau $\ge 20.x$ (Teruji pada Node `v24.14.1`)
-- Proyek Supabase PostgreSQL aktif atau koneksi PostgreSQL lokal
-
-### Langkah 1: Klon & Pasang Dependensi
-```bash
-git clone <url-repo> garasiku
-cd garasiku
-npm install
-```
-
-### Langkah 2: Konfigurasi Environment (`.env`)
-Salin file `.env.example` menjadi `.env`:
-```bash
-cp .env.example .env
-```
-Isi variabel dengan kredensial Supabase Anda:
-```env
-DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres"
-NEXT_PUBLIC_SUPABASE_URL="https://[PROJECT-REF].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-SUPABASE_STORAGE_BUCKET="bukti-bayar"
-JWT_SECRET="garasiku-super-secret-jwt-signing-key-32chars-min!"
-```
-
-### Langkah 3: Konfigurasi Supabase Storage
-1. Buka dashboard proyek Supabase Anda: **Storage** $\longrightarrow$ **New Bucket**.
-2. Beri nama bucket: `bukti-bayar`.
-3. Set centang **Public Bucket** agar gambar bukti pembayaran dapat diakses via URL publik.
-
-### Langkah 4: Migrasi Skema & Seeding Basis Data
-```bash
-# Generate Prisma Client
-npx prisma generate
-
-# Terapkan skema tabel ke Supabase PostgreSQL
-npx prisma db push
-
-# Masukkan data awal demo (Admin, 2 Penyewa, Garasi S001-S005, C001-C005, E001-E003)
-npm run prisma:seed
-```
-
-### Langkah 5: Jalankan Server Pengembangan
-```bash
-npm run dev
-```
-Buka browser pada alamat: [http://localhost:3000](http://localhost:3000)
+### 5. Admin — Laporan Sewa Garasi (4 Dimensi Filter)
+Menampilkan data transaksi dan rekapitulasi finansial secara komprehensif dengan 4 filter:
+1. **Per bulan dalam tahun tertentu** (Filter Tahun + Bulan).
+2. **Per hari dalam bulan tertentu** (Filter Tanggal Spesifik YYYY-MM-DD).
+3. **Per Tipe Garasi** (Semua, Sepeda, Mobil, Mobil Listrik).
+4. **Per Penyewa** (Semua Penyewa atau Penyewa Terdaftar Tertentu).
+- Dilengkapi agregat keuangan: Total Sewa Pokok, Total Biaya Listrik EV, Total Biaya Perpanjangan, dan **Grand Total Omzet**.
 
 ---
 
-## 8. Verifikasi Kualitas Perangkat Lunak (UK 9)
+## 🧪 Pengujian Unit (Unit Testing — Vitest)
 
-Eksekusi seluruh perintah pengujian untuk memverifikasi kepatuhan sistem:
+Sistem telah diuji secara komprehensif menggunakan **Vitest** dengan **62 test cases** yang menguji seluruh aturan bisnis, validasi tipe, batas BVA, dan rumus tarif:
 
-### 1. Unit Testing (Vitest — 38 Skenario Uji Lulus 100%)
 ```bash
 npm test
 ```
-**Cakupan Skenario Uji:**
-- `garageCodeGenerator.test.ts` (11 tests): Format S001, C001, E001, C010; batch berurutan; BVA batas 999; reject 1000 dengan `CapacityExceededError`; reject input negatif.
-- `garasiEntity.test.ts` (8 tests): Enkapsulasi OOP, penolakan harga negatif, kalkulasi sewa bulanan 25x, pewarisan EV `GarasiMobilListrikEntity`, perhitungan biaya isi penuh baterai.
-- `pricingService.test.ts` (19 tests): Seluruh kombinasi matriks kompatibilitas kendaraan & garasi; validasi plat nomor & kWh; BVA durasi harian (0, 1, 30, 31 hari); EV di garasi C vs garasi E; BVA perpanjangan tanggal lama vs tanggal baru.
 
-### 2. Pengecekan Type-Safety TypeScript (Zero Errors)
-```bash
-npx tsc --noEmit
-```
+### Hasil Eksekusi Vitest:
+```text
+ ✓ src/tests/garageCodeGenerator.test.ts (8 tests)
+ ✓ src/tests/garasiEntity.test.ts (8 tests)
+ ✓ src/tests/pricingService.test.ts (20 tests)
+ ✓ tests/garageService.test.ts (9 tests)
+ ✓ tests/rentalService.test.ts (17 tests)
 
-### 3. Pengecekan Kualitas Kode (ESLint Clean)
-```bash
-npm run lint
-```
-
-### 4. Kompilasi Produksi Next.js
-```bash
-npm run build
+ Test Files  5 passed (5)
+      Tests  62 passed (62)
 ```
 
 ---
 
-## 9. Desain Antarmuka (Anti-AI-Slop Craft)
+## 🔑 Kredensial Uji Coba Cepat (Assessor Walkthrough)
 
-Aplikasi ini menerapkan standar desain operasional industri (terinspirasi dari Linear dan Stripe Dashboard):
-- **Warna Dasar**: Slate Dingin Netral (`#F8FAFC`), Kartu Putih Bersih (`#FFFFFF`), Garis Hairline 1px (`#E2E8F0`).
-- **Aksen Interaktif**: Deep Architectural Slate (`#0F172A`) dan Restrained Steel Blue (`#0369A1`).
-- **Status Pills Semantik**:
-  - `AVAILABLE` / `APPROVED`: Latar `#ECFDF5`, Teks `#065F46`, Border `#A7F3D0`
-  - `USED` / `PENDING`: Latar `#FFFBEB`, Teks `#92400E`, Border `#FDE68A`
-  - `REJECTED` / Error: Latar `#FEF2F2`, Teks `#991B1B`, Border `#FECACA`
-- **Tipografi Numerik**: Seluruh angka harga Rupiah, tanggal, dan kode garasi menggunakan font tabular (`tabular-nums`) untuk keterbacaan operasional yang presisi.
-- **Bebas AI-Slop**: Zero gradien ungu/neon, zero glassmorphism buram, zero emoji dalam tombol/navigasi, zero grafik mock palsu yang tidak bersumber dari baris transaksi asli.
+| Peran (Role) | Email | Password | Status Akun | Catatan |
+|---|---|---|---|---|
+| **Admin** | `admin@garasi.com` | `admin123` | `approved` | Akses penuh seluruh menu Admin |
+| **Penyewa (Siap Sewa)** | `budi@gmail.com` | `Penyewa123!` | `approved` | Akun aktif terverifikasi |
+| **Penyewa (Pending)** | `siti@gmail.com` | `Penyewa123!` | `pending` | Untuk uji coba fitur verifikasi admin |
+
+---
+
+## 🛠️ Panduan Instalasi & Menjalankan Aplikasi
+
+1. **Clone Repositori & Pasang Dependensi:**
+   ```bash
+   git clone <url-repo>
+   cd garasiku
+   npm install
+   ```
+
+2. **Konfigurasi Lingkungan (`.env.local`):**
+   Pastikan file `.env.local` memiliki parameter berikut:
+   ```env
+   DATABASE_URL="postgresql://postgres:[PASSWORD]@[HOST]:6543/postgres?pgbouncer=true"
+   DIRECT_URL="postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres"
+   NEXT_PUBLIC_SUPABASE_URL="https://[PROJECT-REF].supabase.co"
+   NEXT_PUBLIC_SUPABASE_ANON_KEY="[ANON-KEY]"
+   SUPABASE_SERVICE_ROLE_KEY="[SERVICE-ROLE-KEY]"
+   JWT_SECRET="garent_lsp_pemrogram_jwt_secret_production_key_2026"
+   ```
+
+3. **Sinkronisasi Skema Prisma & Seeding:**
+   ```bash
+   npx prisma generate
+   npx ts-node --compiler-options "{\"module\":\"CommonJS\"}" prisma/seed.ts
+   ```
+
+4. **Jalankan Pengujian Unit:**
+   ```bash
+   npm test
+   ```
+
+5. **Jalankan Server Pengembangan:**
+   ```bash
+   npm run dev
+   ```
+   Buka peramban di `http://localhost:3000`.
+
+6. **Kompilasi Build Produksi:**
+   ```bash
+   npm run build
+   ```
+
+---
+
+## 🏛️ Arsitektur Direktori Proyek
+
+```text
+garasiku/
+├── prisma/
+│   ├── schema.prisma          # Skema Prisma 4 tabel relasional
+│   └── seed.ts                # Seeder Admin & Penyewa demo
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/         # Halaman Masuk dengan Fast-Fill Demo
+│   │   │   └── register/      # Halaman Pendaftaran NIK 16 digit
+│   │   ├── admin/
+│   │   │   ├── garasi/        # Modul Bulk Create Garasi Auto-ID
+│   │   │   ├── verifikasi/    # Antrean Verifikasi Identitas KTP
+│   │   │   ├── perpanjang/    # Perpanjangan Sewa Aktif & Hitung Sisa Biaya
+│   │   │   ├── laporan/       # Laporan Sewa Garasi 4 Dimensi
+│   │   │   └── layout.tsx     # 240px Sidebar Operasional Admin
+│   │   ├── penyewa/
+│   │   │   ├── sewa-baru/     # Wizard Sewa Baru, Quote, & Upload Bukti Bayar
+│   │   │   ├── riwayat/       # Riwayat Sewa Aktif, Bukti Bayar, & Perpanjangan
+│   │   │   └── layout.tsx     # Portal Navigasi Penyewa
+│   │   ├── api/               # Next.js Route Handlers (Admin, Penyewa, Auth)
+│   │   ├── globals.css        # Tailwind CSS
+│   │   ├── layout.tsx         # Root Layout
+│   │   └── page.tsx           # Landing Page Beranda
+│   ├── components/ui/         # Komponen UI Anti-AI-slop (Card, Button, Modal, Table)
+│   ├── lib/                   # Supabase client, Prisma client, JWT Auth, Format Rupiah
+│   ├── services/              # OOP Service Layer (GarageService, RentalService, AuthService)
+│   └── tests/                 # Unit Testing Vitest
+├── supabase/
+│   └── schema.sql             # Skema DDL Lengkap Supabase & Storage Bucket
+├── package.json
+├── vitest.config.ts
+└── README.md
+```
+
+&copy; 2026 **GARENT (Garage Rental)**. Dibuat untuk pemenuhan standar unjuk kerja Uji Kompetensi **LSP Pemrogram**.

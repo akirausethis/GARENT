@@ -1,361 +1,413 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Navbar } from "@/components/ui/Navbar";
+import {
+  History,
+  Warehouse,
+  Bike,
+  Car,
+  Zap,
+  Calendar,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  CreditCard,
+  FileText,
+  Clock,
+  ArrowRight,
+} from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/Table";
-import { ImageLightbox } from "@/components/ui/ImageLightbox";
-import { formatRupiah, formatDate, formatDateTime } from "@/lib/format";
-import {
-  History,
-  PlusCircle,
-  FileText,
-  Clock,
-  Car,
-  Bike,
-  Zap,
-  Eye,
-  RefreshCw,
-} from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
+import { formatRupiah } from "@/lib/format";
 
-interface UserProfile {
+interface ExtensionRecord {
   id: string;
-  namaLengkap: string;
-  email: string;
-  role: "ADMIN" | "PENYEWA";
-  statusVerifikasi: "PENDING" | "APPROVED" | "REJECTED";
+  oldEndDate: string;
+  newEndDate: string;
+  additionalDays: number;
+  additionalCost: number;
+  paymentProofUrl: string;
+  createdAt: string;
 }
 
 interface RentalRecord {
   id: string;
-  tipeSewa: "HARIAN" | "BULANAN";
-  jumlahHari: number | null;
-  tanggalMulai: string;
-  tanggalSelesai: string;
-  biayaSewa: number;
-  biayaListrik: number;
-  totalBiaya: number;
-  buktiPelunasanUrl: string;
+  vehicleType: "sepeda" | "sepeda_motor" | "mobil" | "mobil_listrik";
+  plateNumber: string | null;
+  vehicleBrandType: string;
+  maxBatteryKwh: number | null;
+  currentBatteryKwh: number | null;
+  rentalType: "harian" | "bulanan";
+  durationDays: number;
+  startDate: string;
+  endDate: string;
+  rentalCost: number;
+  electricityCost: number;
+  totalCost: number;
+  paymentProofUrl: string;
+  status: "active" | "extended" | "completed";
   createdAt: string;
-  garasi: {
-    kodeGarasi: string;
-    tipeGarasi: "SEPEDA" | "MOBIL" | "MOBIL_LISTRIK";
-    status: "AVAILABLE" | "USED";
-    hargaSewaHarian: number;
-  };
-  kendaraan: {
-    tipeKendaraan: "SEPEDA" | "SEPEDA_MOTOR" | "MOBIL" | "MOBIL_LISTRIK";
-    nomorPlat: string | null;
-    merekTipe: string;
-    kapasitasListrikKwh: number | null;
-  };
-  perpanjanganList: {
+  garage: {
     id: string;
-    tanggalSelesaiLama: string;
-    tanggalSelesaiBaru: string;
-    tambahanHari: number;
-    sisaBiaya: number;
-    buktiBayarUrl: string;
-    createdAt: string;
-    admin: {
-      namaLengkap: string;
-      email: string;
-    };
-  }[];
+    code: string;
+    type: "sepeda" | "mobil" | "mobil_listrik";
+    dailyPrice: number;
+    kwhPrice: number | null;
+  };
+  extensions: ExtensionRecord[];
 }
 
 export default function RiwayatSewaPage() {
-  const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [rentals, setRentals] = useState<RentalRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Lightbox state
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState("");
-  const [lightboxTitle, setLightboxTitle] = useState("");
+  // Modal Proof State
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string } | null>(null);
 
-  const loadData = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // 1. Load user
-      const userRes = await fetch("/api/auth/me");
-      if (!userRes.ok) {
-        router.push("/login");
-        return;
-      }
-      const userJson = await userRes.json();
-      setCurrentUser(userJson.data.user);
+  // Accordion state for extension details
+  const [expandedRentalIds, setExpandedRentalIds] = useState<Record<string, boolean>>({});
 
-      // 2. Load rentals
-      const rentRes = await fetch("/api/penyewa/riwayat");
-      if (rentRes.ok) {
-        const rentJson = await rentRes.json();
-        setRentals(rentJson.data.rentals || []);
-      }
-    } catch (err) {
-      console.error("Error loading riwayat:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [router]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const openProof = (url: string, title: string) => {
-    setLightboxUrl(url);
-    setLightboxTitle(title);
-    setLightboxOpen(true);
+  const toggleExpand = (id: string) => {
+    setExpandedRentalIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  useEffect(() => {
+    async function fetchRentals() {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/penyewa/riwayat");
+        if (res.ok) {
+          const json = await res.json();
+          setRentals(json.data?.rentals || []);
+        } else {
+          setErrorMessage("Gagal memuat riwayat penyewaan.");
+        }
+      } catch {
+        setErrorMessage("Terjadi kesalahan jaringan saat memuat data.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchRentals();
+  }, []);
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const activeCount = rentals.filter((r) => r.status === "active" || r.status === "extended").length;
+  const totalSpent = rentals.reduce((sum, r) => {
+    const extSum = r.extensions.reduce((sub, e) => sub + Number(e.additionalCost), 0);
+    return sum + Number(r.totalCost) + extSum;
+  }, 0);
+
   return (
-    <div className="min-h-screen bg-canvas">
-      <Navbar user={currentUser || undefined} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-mono text-slate-500 uppercase tracking-wider mb-1">
-              <span>PENYEWA WORKSPACE</span>
-              <span>/</span>
-              <span className="text-slate-900 font-semibold">RIWAYAT SEWA</span>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Daftar Garasi & Riwayat Sewa Saya
+    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+      {/* Header & Stats Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <History className="w-5 h-5 text-slate-700" />
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              Riwayat Sewa Garasi Saya
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Pantau masa aktif garasi, rincian biaya sewa dan listrik, bukti pembayaran, serta riwayat perpanjangan.
-            </p>
           </div>
+          <p className="text-xs text-slate-500">
+            Daftar seluruh transaksi sewa aktif, riwayat perpanjangan admin, dan arsip bukti pelunasan.
+          </p>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={loadData}
-              isLoading={isLoading}
-              icon={<RefreshCw className="w-3.5 h-3.5" />}
-            >
-              Segarkan
-            </Button>
-            <Link href="/penyewa/sewa-baru">
-              <Button size="sm" icon={<PlusCircle className="w-3.5 h-3.5" />}>
-                Sewa Garasi Baru
-              </Button>
-            </Link>
+        <Link href="/penyewa/sewa-baru">
+          <Button icon={<Warehouse className="w-4 h-4" />}>
+            Sewa Garasi Baru
+          </Button>
+        </Link>
+      </div>
+
+      {/* Quick Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="p-3.5 bg-white border border-slate-200 rounded-lg">
+          <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+            GARASI AKTIF DISEWA
+          </div>
+          <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
+            {activeCount} <span className="text-xs font-sans font-normal text-slate-500">unit</span>
           </div>
         </div>
 
-        {/* Rentals List */}
-        <Card>
-          <CardHeader
-            title={
-              <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-slate-700" />
-                <span>Transaksi Sewa Garasi ({rentals.length})</span>
+        <div className="p-3.5 bg-white border border-slate-200 rounded-lg">
+          <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+            TOTAL TRANSAKSI
+          </div>
+          <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
+            {rentals.length} <span className="text-xs font-sans font-normal text-slate-500">kali</span>
+          </div>
+        </div>
+
+        <div className="p-3.5 bg-white border border-slate-200 rounded-lg">
+          <div className="text-[11px] font-mono text-slate-400 uppercase tracking-wider">
+            TOTAL BIAYA KELUAR
+          </div>
+          <div className="text-2xl font-bold font-mono text-slate-900 mt-1 tabular-nums">
+            {formatRupiah(totalSpent)}
+          </div>
+        </div>
+      </div>
+
+      {/* Main List */}
+      <Card>
+        <CardHeader
+          title="Daftar Sewa Garasi"
+          subtitle="Setiap garasi yang sedang atau pernah Anda sewa"
+        />
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-12 text-center text-xs text-slate-400 font-mono">
+              Memuat data transaksi sewa Anda...
+            </div>
+          ) : errorMessage ? (
+            <div className="p-6 text-center text-xs text-red-600 font-medium">
+              {errorMessage}
+            </div>
+          ) : rentals.length === 0 ? (
+            <div className="p-12 text-center space-y-3">
+              <Warehouse className="w-10 h-10 text-slate-300 mx-auto" />
+              <div className="text-sm font-semibold text-slate-800">
+                Anda Belum Pernah Menyewa Garasi
               </div>
-            }
-            subtitle="Data riwayat penyewaan resmi yang tersimpan di sistem"
-          />
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Garasi siap pakai untuk sepeda, sepeda motor, mobil, dan mobil listrik (EV) tersedia hari ini.
+              </p>
+              <Link href="/penyewa/sewa-baru">
+                <Button size="sm" icon={<ArrowRight className="w-4 h-4" />}>
+                  Sewa Garasi Pertama Anda
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {rentals.map((r) => {
+                const isExpanded = !!expandedRentalIds[r.id];
+                const hasExtensions = r.extensions && r.extensions.length > 0;
 
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="py-12 text-center text-xs text-slate-400">
-                Memuat data riwayat sewa...
-              </div>
-            ) : rentals.length === 0 ? (
-              <div className="py-16 text-center text-slate-400 space-y-3">
-                <FileText className="w-10 h-10 mx-auto stroke-1" />
-                <div className="text-xs">
-                  <p className="font-semibold text-slate-700">Belum ada transaksi penyewaan garasi.</p>
-                  <p className="mt-1">Anda belum pernah menyewa garasi atau data sewa masih kosong.</p>
-                </div>
-                <Link href="/penyewa/sewa-baru">
-                  <Button size="sm">Mulai Sewa Sekarang</Button>
-                </Link>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Kode Garasi</TableHead>
-                    <TableHead>Kendaraan</TableHead>
-                    <TableHead>Tipe Sewa</TableHead>
-                    <TableHead>Periode Sewa</TableHead>
-                    <TableHead>Rincian Biaya</TableHead>
-                    <TableHead>Total Bayar</TableHead>
-                    <TableHead>Bukti Pelunasan</TableHead>
-                    <TableHead>Perpanjangan</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rentals.map((r) => {
-                    const today = new Date();
-                    const endDate = new Date(r.tanggalSelesai);
-                    const isActive = endDate >= today;
+                return (
+                  <div key={r.id} className="p-4 sm:p-5 hover:bg-slate-50/60 transition-colors">
+                    {/* Top Row: Garage Code, Status, Date Range */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono font-bold text-base text-slate-900 px-2 py-0.5 bg-slate-100 rounded border border-slate-200">
+                          {r.garage.code}
+                        </span>
+                        <Badge
+                          variant={
+                            r.garage.type === "sepeda"
+                              ? "sepeda"
+                              : r.garage.type === "mobil"
+                              ? "mobil"
+                              : "mobil_listrik"
+                          }
+                        >
+                          {r.garage.type === "sepeda"
+                            ? "SEPEDA (S)"
+                            : r.garage.type === "mobil"
+                            ? "MOBIL (C)"
+                            : "EV CHARGE (E)"}
+                        </Badge>
 
-                    return (
-                      <TableRow key={r.id}>
-                        {/* Kode Garasi */}
-                        <TableCell>
-                          <div className="space-y-1">
-                            <span className="font-mono font-bold text-xs text-slate-900 block">
-                              {r.garasi.kodeGarasi}
-                            </span>
-                            <Badge
-                              variant={
-                                r.garasi.tipeGarasi === "SEPEDA"
-                                  ? "sepeda"
-                                  : r.garasi.tipeGarasi === "MOBIL"
-                                  ? "mobil"
-                                  : "mobil_listrik"
-                              }
-                            >
-                              {r.garasi.tipeGarasi}
-                            </Badge>
-                          </div>
-                        </TableCell>
-
-                        {/* Kendaraan */}
-                        <TableCell>
-                          <div className="space-y-0.5">
-                            <div className="font-medium text-slate-900 flex items-center gap-1.5">
-                              {r.kendaraan.tipeKendaraan === "SEPEDA" ||
-                              r.kendaraan.tipeKendaraan === "SEPEDA_MOTOR" ? (
-                                <Bike className="w-3.5 h-3.5 text-slate-500" />
-                              ) : r.kendaraan.tipeKendaraan === "MOBIL_LISTRIK" ? (
-                                <Zap className="w-3.5 h-3.5 text-teal-600" />
-                              ) : (
-                                <Car className="w-3.5 h-3.5 text-slate-500" />
-                              )}
-                              <span>{r.kendaraan.merekTipe}</span>
-                            </div>
-                            <div className="font-mono text-[11px] text-slate-500">
-                              {r.kendaraan.nomorPlat ? r.kendaraan.nomorPlat : "Tanpa Plat (Sepeda)"}
-                            </div>
-                            {r.kendaraan.kapasitasListrikKwh && (
-                              <div className="text-[10px] text-teal-700 font-mono">
-                                Baterai: {r.kendaraan.kapasitasListrikKwh} kWh
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* Tipe Sewa */}
-                        <TableCell>
-                          <Badge variant="neutral">
-                            {r.tipeSewa === "HARIAN" ? `Harian (${r.jumlahHari} Hari)` : "Bulanan"}
-                          </Badge>
-                        </TableCell>
-
-                        {/* Periode Sewa */}
-                        <TableCell>
-                          <div className="space-y-0.5 text-xs">
-                            <div className="text-slate-600">
-                              Mulai: <span className="font-mono font-medium text-slate-900">{formatDate(r.tanggalMulai)}</span>
-                            </div>
-                            <div className="text-slate-600">
-                              Selesai: <span className="font-mono font-medium text-slate-900">{formatDate(r.tanggalSelesai)}</span>
-                            </div>
-                            <div>
-                              <Badge variant={isActive ? "available" : "neutral"}>
-                                {isActive ? "Masa Aktif" : "Selesai"}
-                              </Badge>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        {/* Rincian Biaya */}
-                        <TableCell>
-                          <div className="space-y-0.5 text-[11px] font-mono text-slate-600">
-                            <div>Sewa: {formatRupiah(r.biayaSewa)}</div>
-                            {Number(r.biayaListrik) > 0 && (
-                              <div className="text-teal-700">
-                                Listrik: {formatRupiah(r.biayaListrik)}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* Total Bayar */}
-                        <TableCell>
-                          <span className="font-mono font-bold text-xs text-slate-900 block">
-                            {formatRupiah(r.totalBiaya)}
+                        {r.status === "active" && (
+                          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            AKTIF
                           </span>
-                        </TableCell>
+                        )}
+                        {r.status === "extended" && (
+                          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">
+                            DIPERPANJANG
+                          </span>
+                        )}
+                        {r.status === "completed" && (
+                          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            SELESAI
+                          </span>
+                        )}
+                      </div>
 
-                        {/* Bukti Pelunasan */}
-                        <TableCell>
+                      <div className="text-xs text-slate-500 flex items-center gap-1.5 font-mono">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>
+                          {formatDate(r.startDate)} &rarr;{" "}
+                          <strong className="text-slate-900">{formatDate(r.endDate)}</strong>
+                        </span>
+                        <span className="text-slate-400">({r.durationDays} hari / {r.rentalType})</span>
+                      </div>
+                    </div>
+
+                    {/* Middle Row: Vehicle Details & Financial Breakdown */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs bg-slate-50/70 p-3 rounded-lg border border-slate-100">
+                      {/* Vehicle */}
+                      <div>
+                        <div className="text-[10px] font-mono text-slate-400 uppercase">KENDARAAN</div>
+                        <div className="font-semibold text-slate-900 mt-0.5">{r.vehicleBrandType}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">
+                          {r.plateNumber ? `Plat: ${r.plateNumber}` : "Tanpa Plat (Sepeda)"}
+                        </div>
+                      </div>
+
+                      {/* EV Battery Spec if applicable */}
+                      <div>
+                        <div className="text-[10px] font-mono text-slate-400 uppercase">SPESIFIKASI BATERAI</div>
+                        {r.maxBatteryKwh ? (
+                          <div className="mt-0.5 text-slate-700 font-mono text-[11px]">
+                            {r.currentBatteryKwh} kWh &rarr; {r.maxBatteryKwh} kWh (Penuh)
+                          </div>
+                        ) : (
+                          <div className="mt-0.5 text-slate-400 italic">Non-EV</div>
+                        )}
+                      </div>
+
+                      {/* Costs */}
+                      <div>
+                        <div className="text-[10px] font-mono text-slate-400 uppercase">RINCIAN BIAYA</div>
+                        <div className="text-[11px] text-slate-700 mt-0.5">
+                          Sewa: <span className="font-mono">{formatRupiah(r.rentalCost)}</span>
+                        </div>
+                        {Number(r.electricityCost) > 0 && (
+                          <div className="text-[11px] text-teal-800">
+                            Listrik: <span className="font-mono">{formatRupiah(r.electricityCost)}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Total & Action */}
+                      <div className="flex flex-col justify-between items-start sm:items-end">
+                        <div>
+                          <div className="text-[10px] font-mono text-slate-400 uppercase sm:text-right">
+                            TOTAL TRANSAKSI
+                          </div>
+                          <div className="font-mono font-bold text-sm text-slate-900 tabular-nums sm:text-right">
+                            {formatRupiah(r.totalCost)}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-2">
                           <button
+                            type="button"
                             onClick={() =>
-                              openProof(
-                                r.buktiPelunasanUrl,
-                                `Bukti Bayar Sewa — ${r.garasi.kodeGarasi} (${formatDate(r.createdAt)})`
-                              )
+                              setPreviewImage({
+                                url: r.paymentProofUrl,
+                                title: `Bukti Pembayaran Awal — Garasi ${r.garage.code}`,
+                              })
                             }
-                            className="inline-flex items-center gap-1 px-2 py-1 border border-slate-200 rounded text-[11px] font-medium text-steel-700 hover:bg-steel-50 transition-colors"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-steel-700 hover:text-steel-900 underline"
                           >
-                            <Eye className="w-3 h-3" />
-                            <span>Lihat Bukti</span>
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Bukti Bayar</span>
                           </button>
-                        </TableCell>
 
-                        {/* Riwayat Perpanjangan */}
-                        <TableCell>
-                          {r.perpanjanganList.length === 0 ? (
-                            <span className="text-slate-400 text-[11px]">-</span>
-                          ) : (
-                            <div className="space-y-1">
-                              <span className="text-[11px] font-semibold text-slate-700 block">
-                                {r.perpanjanganList.length}x Diperpanjang
-                              </span>
-                              {r.perpanjanganList.map((ext) => (
-                                <div
-                                  key={ext.id}
-                                  className="text-[10px] p-1.5 bg-slate-50 border border-slate-200 rounded font-mono space-y-0.5"
-                                >
-                                  <div>+{ext.tambahanHari} hari ({formatRupiah(ext.sisaBiaya)})</div>
-                                  <div className="text-slate-400">s/d {formatDate(ext.tanggalSelesaiBaru)}</div>
-                                  <button
-                                    onClick={() =>
-                                      openProof(
-                                        ext.buktiBayarUrl,
-                                        `Bukti Perpanjangan — ${r.garasi.kodeGarasi}`
-                                      )
-                                    }
-                                    className="text-steel-700 hover:underline flex items-center gap-0.5"
-                                  >
-                                    <Eye className="w-2.5 h-2.5" /> Bukti Perpanjangan
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
+                          {hasExtensions && (
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(r.id)}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded"
+                            >
+                              <span>{r.extensions.length} Perpanjangan</span>
+                              {isExpanded ? (
+                                <ChevronUp className="w-3 h-3" />
+                              ) : (
+                                <ChevronDown className="w-3 h-3" />
+                              )}
+                            </button>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+                        </div>
+                      </div>
+                    </div>
 
-      {/* Lightbox Modal */}
-      <ImageLightbox
-        isOpen={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-        imageUrl={lightboxUrl}
-        title={lightboxTitle}
-      />
+                    {/* Extension Sub-Panel */}
+                    {hasExtensions && isExpanded && (
+                      <div className="mt-3 pl-4 border-l-2 border-blue-400 space-y-2">
+                        <div className="text-[11px] font-mono text-blue-800 font-semibold uppercase tracking-wider flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>Riwayat Perpanjangan Oleh Admin</span>
+                        </div>
+                        <div className="space-y-2">
+                          {r.extensions.map((ext, idx) => (
+                            <div
+                              key={ext.id}
+                              className="p-2.5 bg-blue-50/50 border border-blue-200 rounded text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                            >
+                              <div>
+                                <span className="font-semibold text-blue-950">Perpanjangan #{idx + 1}:</span>{" "}
+                                <span className="font-mono text-[11px] text-blue-900">
+                                  {formatDate(ext.oldEndDate)} &rarr;{" "}
+                                  <strong>{formatDate(ext.newEndDate)}</strong> (+{ext.additionalDays} hari)
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="font-mono font-bold text-blue-950 tabular-nums">
+                                  +{formatRupiah(ext.additionalCost)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPreviewImage({
+                                      url: ext.paymentProofUrl,
+                                      title: `Bukti Perpanjangan #${idx + 1} — Garasi ${r.garage.code}`,
+                                    })
+                                  }
+                                  className="text-[11px] text-blue-700 hover:text-blue-900 underline flex items-center gap-1"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                  <span>Bukti Perpanjangan</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Modal Pratinjau Bukti Bayar */}
+      <Modal
+        isOpen={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        title={previewImage?.title || "Bukti Pembayaran"}
+        maxWidth="lg"
+      >
+        <div className="space-y-3">
+          <div className="bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center min-h-[300px]">
+            {previewImage?.url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewImage.url}
+                alt={previewImage.title}
+                className="max-h-[500px] w-auto object-contain mx-auto"
+              />
+            ) : (
+              <div className="text-xs text-slate-400">Berkas gambar tidak ditemukan</div>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" variant="secondary" onClick={() => setPreviewImage(null)}>
+              Tutup
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

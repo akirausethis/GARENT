@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-const COOKIE_NAME = "garasiku_session";
-const DEFAULT_SECRET = "garasiku-super-secret-jwt-signing-key-32chars-min!";
+const COOKIE_NAME = "garent_session";
+const DEFAULT_SECRET = "garent-super-secret-jwt-signing-key-32chars-min!";
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || DEFAULT_SECRET);
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const token = req.cookies.get(COOKIE_NAME)?.value || req.cookies.get("garasiku_session")?.value;
 
   let session: { role: string; statusVerifikasi: string } | null = null;
 
@@ -15,17 +15,17 @@ export async function middleware(req: NextRequest) {
     try {
       const { payload } = await jwtVerify(token, SECRET_KEY);
       session = {
-        role: payload.role as string,
-        statusVerifikasi: payload.statusVerifikasi as string,
+        role: String(payload.role || "").toLowerCase(),
+        statusVerifikasi: String(payload.statusVerifikasi || "").toLowerCase(),
       };
     } catch {
       session = null;
     }
   }
 
-  // 1. Lindungi rute Admin (/admin/*)
+  // 1. Lindungi seluruh rute Admin (/admin/*)
   if (pathname.startsWith("/admin")) {
-    if (!session || session.role !== "ADMIN") {
+    if (!session || session.role !== "admin") {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
@@ -35,7 +35,7 @@ export async function middleware(req: NextRequest) {
 
   // 2. Lindungi rute Penyewa (/penyewa/*)
   if (pathname.startsWith("/penyewa")) {
-    if (!session || session.role !== "PENYEWA") {
+    if (!session || session.role !== "penyewa") {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
@@ -46,10 +46,10 @@ export async function middleware(req: NextRequest) {
   // 3. Jika sudah login dan mengakses /login atau /register
   if (pathname === "/login" || pathname === "/register") {
     if (session) {
-      if (session.role === "ADMIN") {
-        return NextResponse.redirect(new URL("/admin", req.url));
+      if (session.role === "admin") {
+        return NextResponse.redirect(new URL("/admin/garasi", req.url));
       }
-      if (session.role === "PENYEWA") {
+      if (session.role === "penyewa") {
         return NextResponse.redirect(new URL("/penyewa/sewa-baru", req.url));
       }
     }

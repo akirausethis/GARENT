@@ -6,14 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Badge } from "./Badge";
 import {
-  Warehouse,
   KeyRound,
   FileCheck2,
   CalendarClock,
   BarChart3,
-  LogOut,
+  Warehouse,
   History,
-  PlusCircle,
+  LogOut,
   Menu,
   X,
 } from "lucide-react";
@@ -21,10 +20,11 @@ import {
 interface NavbarProps {
   user?: {
     id: string;
-    namaLengkap: string;
+    namaLengkap?: string;
+    fullName?: string;
     email: string;
-    role: "ADMIN" | "PENYEWA";
-    statusVerifikasi?: "PENDING" | "APPROVED" | "REJECTED";
+    role: "ADMIN" | "PENYEWA" | "admin" | "penyewa";
+    statusVerifikasi?: "PENDING" | "APPROVED" | "REJECTED" | "pending" | "approved" | "rejected";
   };
 }
 
@@ -46,20 +46,21 @@ export function Navbar({ user }: NavbarProps) {
     }
   };
 
+  const role = user?.role?.toLowerCase();
+
   const adminLinks = [
-    { href: "/admin", label: "Ringkasan", icon: <Warehouse className="w-4 h-4" /> },
-    { href: "/admin/garasi", label: "Kelola Garasi", icon: <KeyRound className="w-4 h-4" /> },
+    { href: "/admin/garasi", label: "Inventaris Garasi", icon: <KeyRound className="w-4 h-4" /> },
     { href: "/admin/verifikasi", label: "Verifikasi KTP", icon: <FileCheck2 className="w-4 h-4" /> },
-    { href: "/admin/perpanjang", label: "Perpanjangan", icon: <CalendarClock className="w-4 h-4" /> },
-    { href: "/admin/laporan", label: "Laporan Pendapatan", icon: <BarChart3 className="w-4 h-4" /> },
+    { href: "/admin/perpanjang", label: "Perpanjang Sewa", icon: <CalendarClock className="w-4 h-4" /> },
+    { href: "/admin/laporan", label: "Laporan Sewa", icon: <BarChart3 className="w-4 h-4" /> },
   ];
 
   const penyewaLinks = [
-    { href: "/penyewa/sewa-baru", label: "Sewa Baru", icon: <PlusCircle className="w-4 h-4" /> },
+    { href: "/penyewa/sewa-baru", label: "Sewa Baru", icon: <Warehouse className="w-4 h-4" /> },
     { href: "/penyewa/riwayat", label: "Riwayat Sewa", icon: <History className="w-4 h-4" /> },
   ];
 
-  const links = user?.role === "ADMIN" ? adminLinks : penyewaLinks;
+  const currentLinks = role === "admin" ? adminLinks : role === "penyewa" ? penyewaLinks : [];
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200">
@@ -68,7 +69,7 @@ export function Navbar({ user }: NavbarProps) {
           {/* Brand */}
           <div className="flex items-center gap-6">
             <Link
-              href={user?.role === "ADMIN" ? "/admin" : "/penyewa/sewa-baru"}
+              href={role === "admin" ? "/admin/garasi" : role === "penyewa" ? "/penyewa/sewa-baru" : "/"}
               className="flex items-center gap-2 group"
             >
               <div className="w-7 h-7 rounded bg-slate-900 text-white flex items-center justify-center font-mono font-bold text-xs tracking-wider shadow-hairline">
@@ -76,18 +77,18 @@ export function Navbar({ user }: NavbarProps) {
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-sm tracking-tight text-slate-900 leading-none">
-                  GARASIKU
+                  GARENT
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono tracking-wider leading-tight mt-0.5">
-                  OPERATIONAL HUB
+                  GARAGE RENTAL
                 </span>
               </div>
             </Link>
 
-            {/* Desktop Navigation */}
-            {user && (
+            {/* Desktop Navigation for Logged-in Users */}
+            {currentLinks.length > 0 && (
               <nav className="hidden md:flex items-center gap-1">
-                {links.map((link) => {
+                {currentLinks.map((link) => {
                   const isActive = pathname === link.href;
                   return (
                     <Link
@@ -96,7 +97,7 @@ export function Navbar({ user }: NavbarProps) {
                       className={clsx(
                         "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors",
                         isActive
-                          ? "bg-slate-900 text-white"
+                          ? "bg-slate-900 text-white shadow-hairline"
                           : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                       )}
                     >
@@ -116,14 +117,14 @@ export function Navbar({ user }: NavbarProps) {
                 <div className="hidden sm:flex items-center gap-2 text-right">
                   <div className="flex flex-col items-end">
                     <span className="text-xs font-medium text-slate-900 leading-none">
-                      {user.namaLengkap}
+                      {user.namaLengkap || user.fullName}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono mt-0.5 leading-none">
                       {user.email}
                     </span>
                   </div>
-                  <Badge variant={user.role === "ADMIN" ? "neutral" : "steel"}>
-                    {user.role}
+                  <Badge variant={role === "admin" ? "neutral" : "steel"}>
+                    {role?.toUpperCase()}
                   </Badge>
                 </div>
 
@@ -138,12 +139,14 @@ export function Navbar({ user }: NavbarProps) {
                 </button>
 
                 {/* Mobile hamburger button */}
-                <button
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="md:hidden p-1.5 rounded text-slate-600 hover:bg-slate-100"
-                >
-                  {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </button>
+                {currentLinks.length > 0 && (
+                  <button
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    className="md:hidden p-1.5 rounded text-slate-600 hover:bg-slate-100"
+                  >
+                    {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                  </button>
+                )}
               </>
             ) : (
               <div className="flex items-center gap-2">
@@ -165,9 +168,9 @@ export function Navbar({ user }: NavbarProps) {
         </div>
 
         {/* Mobile menu dropdown */}
-        {user && mobileMenuOpen && (
+        {currentLinks.length > 0 && mobileMenuOpen && (
           <div className="md:hidden py-3 border-t border-slate-100 space-y-1">
-            {links.map((link) => {
+            {currentLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
                 <Link

@@ -1,6 +1,6 @@
 /**
  * @file types.ts
- * @description Domain types and enumerations for GARASIKU.
+ * @description Domain types and enumerations for GARENT (Garage Rental).
  * Aligns strictly with LSP Pemrogram UK 2 (Clean Code) and UK 4 (OOP).
  */
 

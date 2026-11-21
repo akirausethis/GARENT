@@ -74,10 +74,10 @@ export default function RegisterPage() {
             G
           </div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
-            Pendaftaran Penyewa Garasi
+            Pendaftaran Penyewa GARENT
           </h1>
           <p className="text-xs text-slate-500">
-            Lengkapi data identitas KTP/NIK untuk verifikasi akun penyewa
+            Lengkapi data identitas KTP/NIK untuk akun GARENT (Garage Rental)
           </p>
         </div>
 

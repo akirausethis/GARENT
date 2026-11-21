@@ -1,116 +1,141 @@
-import { PrismaClient, Role, StatusVerifikasi, TipeGarasi, StatusGarasi } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Seeding GARASIKU development database...");
+  console.log("Seeding GARENT (Garage Rental) database...");
 
-  // 1. Hash passwords (cost factor 10)
-  const adminPasswordHash = await bcrypt.hash("Admin123!", 10);
+  // 1. Hash passwords
+  const adminPasswordHash = await bcrypt.hash("admin123", 10);
   const penyewaPasswordHash = await bcrypt.hash("Penyewa123!", 10);
 
-  // 2. Upsert Admin user
+  // 2. Seed 1 Admin (admin@garasi.com / admin123)
   const admin = await prisma.user.upsert({
     where: { email: "admin@garasi.com" },
-    update: {},
+    update: {
+      passwordHash: adminPasswordHash,
+      role: "admin",
+      fullName: "Administrator GARENT",
+      phoneNumber: "081234567890",
+      verificationStatus: "approved",
+    },
     create: {
       email: "admin@garasi.com",
       passwordHash: adminPasswordHash,
-      role: Role.ADMIN,
-      namaLengkap: "Administrator Garasiku",
-      noTelepon: "081234567890",
-      statusVerifikasi: StatusVerifikasi.APPROVED,
+      role: "admin",
+      fullName: "Administrator GARENT",
+      phoneNumber: "081234567890",
+      verificationStatus: "approved",
     },
   });
-  console.log(`Admin created: ${admin.email}`);
+  console.log(`[Seed] Admin created: ${admin.email}`);
 
-  // 3. Upsert Approved Penyewa
+  // 3. Seed 2 Penyewa: 1 approved (budi@gmail.com), 1 pending (siti@gmail.com)
   const penyewaApproved = await prisma.user.upsert({
     where: { email: "budi@gmail.com" },
-    update: {},
+    update: {
+      passwordHash: penyewaPasswordHash,
+      role: "penyewa",
+      nik: "3171012345670001",
+      fullName: "Budi Santoso",
+      phoneNumber: "081298765432",
+      verificationStatus: "approved",
+    },
     create: {
       email: "budi@gmail.com",
       passwordHash: penyewaPasswordHash,
-      role: Role.PENYEWA,
+      role: "penyewa",
       nik: "3171012345670001",
-      namaLengkap: "Budi Santoso",
-      noTelepon: "081298765432",
-      statusVerifikasi: StatusVerifikasi.APPROVED,
-      verifiedById: admin.id,
+      fullName: "Budi Santoso",
+      phoneNumber: "081298765432",
+      verificationStatus: "approved",
     },
   });
-  console.log(`Approved Penyewa created: ${penyewaApproved.email}`);
+  console.log(`[Seed] Approved Penyewa: ${penyewaApproved.email} (Status: approved)`);
 
-  // 4. Upsert Pending Penyewa
   const penyewaPending = await prisma.user.upsert({
     where: { email: "siti@gmail.com" },
-    update: {},
+    update: {
+      passwordHash: penyewaPasswordHash,
+      role: "penyewa",
+      nik: "3273019876540002",
+      fullName: "Siti Rahmawati",
+      phoneNumber: "081311223344",
+      verificationStatus: "pending",
+    },
     create: {
       email: "siti@gmail.com",
       passwordHash: penyewaPasswordHash,
-      role: Role.PENYEWA,
+      role: "penyewa",
       nik: "3273019876540002",
-      namaLengkap: "Siti Rahmawati",
-      noTelepon: "081311223344",
-      statusVerifikasi: StatusVerifikasi.PENDING,
+      fullName: "Siti Rahmawati",
+      phoneNumber: "081311223344",
+      verificationStatus: "pending",
     },
   });
-  console.log(`Pending Penyewa created: ${penyewaPending.email}`);
+  console.log(`[Seed] Pending Penyewa: ${penyewaPending.email} (Status: pending)`);
 
-  // 5. Seed Garasi Sepeda (S001 - S005)
+  // 4. Seed initial garages: S001–S005 (sepeda)
   for (let i = 1; i <= 5; i++) {
-    const kode = `S${String(i).padStart(3, "0")}`;
-    await prisma.garasi.upsert({
-      where: { kodeGarasi: kode },
-      update: {},
+    const code = `S${String(i).padStart(3, "0")}`;
+    await prisma.garage.upsert({
+      where: { code },
+      update: {
+        dailyPrice: 10000,
+      },
       create: {
-        kodeGarasi: kode,
-        tipeGarasi: TipeGarasi.SEPEDA,
-        nomorUrut: i,
-        hargaSewaHarian: 10000,
-        status: StatusGarasi.AVAILABLE,
+        code,
+        type: "sepeda",
+        sequenceNumber: i,
+        dailyPrice: 10000,
+        status: "available",
       },
     });
   }
-  console.log("Seeded S001..S005 (SEPEDA)");
+  console.log("[Seed] Garasi Sepeda: S001..S005 seeded.");
 
-  // 6. Seed Garasi Mobil Bensin (C001 - C005)
+  // 5. Seed initial garages: C001–C005 (mobil)
   for (let i = 1; i <= 5; i++) {
-    const kode = `C${String(i).padStart(3, "0")}`;
-    await prisma.garasi.upsert({
-      where: { kodeGarasi: kode },
-      update: {},
+    const code = `C${String(i).padStart(3, "0")}`;
+    await prisma.garage.upsert({
+      where: { code },
+      update: {
+        dailyPrice: 50000,
+      },
       create: {
-        kodeGarasi: kode,
-        tipeGarasi: TipeGarasi.MOBIL,
-        nomorUrut: i,
-        hargaSewaHarian: 50000,
-        status: StatusGarasi.AVAILABLE,
+        code,
+        type: "mobil",
+        sequenceNumber: i,
+        dailyPrice: 50000,
+        status: "available",
       },
     });
   }
-  console.log("Seeded C001..C005 (MOBIL)");
+  console.log("[Seed] Garasi Mobil: C001..C005 seeded.");
 
-  // 7. Seed Garasi Mobil Listrik (E001 - E003)
+  // 6. Seed initial garages: E001–E003 (mobil_listrik)
   for (let i = 1; i <= 3; i++) {
-    const kode = `E${String(i).padStart(3, "0")}`;
-    await prisma.garasi.upsert({
-      where: { kodeGarasi: kode },
-      update: {},
+    const code = `E${String(i).padStart(3, "0")}`;
+    await prisma.garage.upsert({
+      where: { code },
+      update: {
+        dailyPrice: 75000,
+        kwhPrice: 2500,
+      },
       create: {
-        kodeGarasi: kode,
-        tipeGarasi: TipeGarasi.MOBIL_LISTRIK,
-        nomorUrut: i,
-        hargaSewaHarian: 75000,
-        hargaListrikPerKwh: 2500,
-        status: StatusGarasi.AVAILABLE,
+        code,
+        type: "mobil_listrik",
+        sequenceNumber: i,
+        dailyPrice: 75000,
+        kwhPrice: 2500,
+        status: "available",
       },
     });
   }
-  console.log("Seeded E001..E003 (MOBIL_LISTRIK)");
+  console.log("[Seed] Garasi Mobil Listrik: E001..E003 seeded.");
 
-  console.log("Seed completed successfully!");
+  console.log("GARENT Seed completed successfully!");
 }
 
 main()

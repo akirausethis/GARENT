@@ -1,6 +1,6 @@
 /**
  * @file format.ts
- * @description Standard currency, date, and string formatting utilities for GARASIKU.
+ * @description Standard currency, date, and string formatting utilities for GARENT.
  * Complies with anti-AI-slop design specifications (tabular nums, Indonesian Rupiah).
  */
 

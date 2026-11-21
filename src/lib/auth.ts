@@ -6,26 +6,21 @@
 
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { Role, StatusVerifikasi } from "../domain/types";
-import { UnauthorizedError, ForbiddenError } from "../domain/errors";
 
-const COOKIE_NAME = "garasiku_session";
-const DEFAULT_SECRET = "garasiku-super-secret-jwt-signing-key-32chars-min!";
+const COOKIE_NAME = "garent_session";
+const DEFAULT_SECRET = "garent-super-secret-jwt-signing-key-32chars-min!";
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || DEFAULT_SECRET);
 
 export interface SessionPayload {
   userId: string;
   email: string;
-  role: Role;
-  statusVerifikasi: StatusVerifikasi;
+  role: string; // 'admin' | 'penyewa'
+  statusVerifikasi: string; // 'pending' | 'approved' | 'rejected'
   namaLengkap: string;
 }
 
 /**
  * Membuat token JWT sesi terenkripsi dan menyimpannya di HTTP-only cookie.
- *
- * @param payload - Informasi identitas pengguna yang disimpan dalam sesi.
- * @returns Token JWT terformat.
  */
 export async function createSession(payload: SessionPayload): Promise<string> {
   const token = await new SignJWT({ ...payload })
@@ -48,12 +43,10 @@ export async function createSession(payload: SessionPayload): Promise<string> {
 
 /**
  * Membaca dan memverifikasi token sesi dari HTTP-only cookie.
- *
- * @returns Data sesi terverifikasi atau null jika sesi kedaluwarsa/tidak ada.
  */
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
+  const token = cookieStore.get(COOKIE_NAME)?.value || cookieStore.get("garasiku_session")?.value;
 
   if (!token) {
     return null;
@@ -64,8 +57,8 @@ export async function getSession(): Promise<SessionPayload | null> {
     return {
       userId: payload.userId as string,
       email: payload.email as string,
-      role: payload.role as Role,
-      statusVerifikasi: payload.statusVerifikasi as StatusVerifikasi,
+      role: (payload.role as string).toLowerCase(),
+      statusVerifikasi: (payload.statusVerifikasi as string).toLowerCase(),
       namaLengkap: payload.namaLengkap as string,
     };
   } catch {
@@ -79,45 +72,39 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete("garasiku_session");
 }
 
 /**
  * Penjaga rute: Memastikan pengguna sudah terautentikasi.
- *
- * @returns Data sesi pengguna.
- * @throws {UnauthorizedError} Jika tidak ada sesi valid.
  */
 export async function requireAuth(): Promise<SessionPayload> {
   const session = await getSession();
   if (!session) {
-    throw new UnauthorizedError("Sesi Anda telah berakhir. Silakan login kembali.");
+    throw new Error("Sesi Anda telah berakhir. Silakan login kembali.");
   }
   return session;
 }
 
 /**
  * Penjaga rute khusus Penyewa:
- * Memastikan pengguna memiliki peran PENYEWA dan status verifikasi APPROVED.
- * Jika status masih PENDING atau REJECTED, akan dilemparkan pesan informatif bahasa Indonesia.
- *
- * @returns Data sesi Penyewa yang disetujui.
- * @throws {UnauthorizedError | ForbiddenError}
+ * Memastikan peran 'penyewa' dan status 'approved'.
  */
 export async function requireApprovedPenyewa(): Promise<SessionPayload> {
   const session = await requireAuth();
 
-  if (session.role !== "PENYEWA") {
-    throw new ForbiddenError("Akses khusus untuk akun Penyewa.");
+  if (session.role.toLowerCase() !== "penyewa") {
+    throw new Error("Akses khusus untuk akun Penyewa.");
   }
 
-  if (session.statusVerifikasi === "PENDING") {
-    throw new ForbiddenError(
+  if (session.statusVerifikasi.toLowerCase() === "pending") {
+    throw new Error(
       "Akun Anda sedang dalam proses verifikasi KTP/NIK oleh Admin. Anda belum dapat melakukan penyewaan garasi hingga akun disetujui."
     );
   }
 
-  if (session.statusVerifikasi === "REJECTED") {
-    throw new ForbiddenError(
+  if (session.statusVerifikasi.toLowerCase() === "rejected") {
+    throw new Error(
       "Pendaftaran akun Anda ditolak oleh Admin. Silakan hubungi operator garasi untuk klarifikasi data NIK/KTP."
     );
   }
@@ -127,15 +114,12 @@ export async function requireApprovedPenyewa(): Promise<SessionPayload> {
 
 /**
  * Penjaga rute khusus Admin:
- * Memastikan pengguna memiliki peran ADMIN.
- *
- * @returns Data sesi Admin.
- * @throws {ForbiddenError}
+ * Memastikan peran 'admin'.
  */
 export async function requireAdmin(): Promise<SessionPayload> {
   const session = await requireAuth();
-  if (session.role !== "ADMIN") {
-    throw new ForbiddenError("Akses ditolak. Halaman ini hanya dapat diakses oleh Admin.");
+  if (session.role.toLowerCase() !== "admin") {
+    throw new Error("Akses ditolak. Halaman ini hanya dapat diakses oleh Admin.");
   }
   return session;
 }

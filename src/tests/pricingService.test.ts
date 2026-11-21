@@ -2,7 +2,7 @@
  * @file pricingService.test.ts
  * @description Unit tests for GaragePricingService verifying all LSP business rules.
  * Uses AAA (Arrange-Act-Assert) pattern and Boundary Value Analysis (BVA).
- * Satisfies LSP Pemrogram UK 9 (Testing).
+ * Satisfies LSP Pemrogram UK 9 (Testing) covering UT-07, UT-08, UT-09, and UT-10.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -10,7 +10,7 @@ import { GaragePricingService } from "../domain/services/GaragePricingService";
 import { CompatibilityError, ValidationError } from "../domain/errors";
 import { VehicleInput, NewRentalParams } from "../domain/types";
 
-describe("GaragePricingService", () => {
+describe("GaragePricingService (LSP UK 9: UT-07, UT-08, UT-09, UT-10)", () => {
   let service: GaragePricingService;
 
   beforeEach(() => {
@@ -18,9 +18,9 @@ describe("GaragePricingService", () => {
   });
 
   // ============================================================================
-  // 1. Vehicle-to-Garage Compatibility Matrix
+  // [UT-07] Vehicle-to-Garage Compatibility Matrix
   // ============================================================================
-  describe("Vehicle-to-Garage Compatibility Matrix", () => {
+  describe("[UT-07] Vehicle-to-Garage Compatibility Matrix", () => {
     it("should allow SEPEDA only in SEPEDA garage", () => {
       expect(() => service.validateCompatibility("SEPEDA", "SEPEDA")).not.toThrow();
       expect(() => service.validateCompatibility("SEPEDA", "MOBIL")).toThrow(CompatibilityError);
@@ -57,9 +57,9 @@ describe("GaragePricingService", () => {
   });
 
   // ============================================================================
-  // 2. Vehicle Field Validation
+  // [UT-08] Vehicle Field Validation
   // ============================================================================
-  describe("Vehicle Field Validation", () => {
+  describe("[UT-08] Vehicle Field Validation", () => {
     it("should allow SEPEDA without license plate", () => {
       const bike: VehicleInput = {
         tipeKendaraan: "SEPEDA",
@@ -92,6 +92,13 @@ describe("GaragePricingService", () => {
         merekTipe: "Toyota Avanza",
       };
       expect(() => service.validateVehicleFields(carWithoutPlate)).toThrow(ValidationError);
+
+      const carWithPlate: VehicleInput = {
+        tipeKendaraan: "MOBIL",
+        nomorPlat: "B 9999 ABC",
+        merekTipe: "Toyota Avanza",
+      };
+      expect(() => service.validateVehicleFields(carWithPlate)).not.toThrow();
     });
 
     it("should require license plate and positive kWh for MOBIL_LISTRIK", () => {
@@ -122,25 +129,28 @@ describe("GaragePricingService", () => {
   });
 
   // ============================================================================
-  // 3. Rental Duration Boundary Value Analysis (1 <= jumlahHari <= 30)
+  // [UT-09] Daily Rental BVA & EV Charging Rules
   // ============================================================================
-  describe("Daily Rental Duration (BVA: 1..30)", () => {
-    const baseParams: Omit<NewRentalParams, "jumlahHari"> = {
+  describe("[UT-09] Daily Rental Duration BVA & EV Charging Calculation", () => {
+    const baseParams: NewRentalParams = {
       tipeSewa: "HARIAN",
       tanggalMulai: "2026-11-21",
       hargaSewaHarian: 50000,
       tipeGarasi: "MOBIL",
       vehicle: {
         tipeKendaraan: "MOBIL",
-        nomorPlat: "B 9999 ABC",
+        nomorPlat: "B 1234 CD",
         merekTipe: "Honda Civic",
       },
     };
 
-    it("should throw ValidationError for jumlahHari <= 0 (0 and negative)", () => {
+    it("should throw ValidationError for below lower boundary: jumlahHari = 0", () => {
       expect(() => service.calculateNewRental({ ...baseParams, jumlahHari: 0 })).toThrow(
         ValidationError
       );
+    });
+
+    it("should throw ValidationError for negative jumlahHari", () => {
       expect(() => service.calculateNewRental({ ...baseParams, jumlahHari: -5 })).toThrow(
         ValidationError
       );
@@ -165,12 +175,7 @@ describe("GaragePricingService", () => {
         ValidationError
       );
     });
-  });
 
-  // ============================================================================
-  // 4. Monthly Pricing (Exact 25x Formula)
-  // ============================================================================
-  describe("Monthly Rental Rate Calculation (25x Formula)", () => {
     it("should calculate exact 25 × hargaSewaHarian for BULANAN", () => {
       const quote = service.calculateNewRental({
         tipeSewa: "BULANAN",
@@ -190,20 +195,15 @@ describe("GaragePricingService", () => {
       expect(quote.biayaListrik).toBe(0);
       expect(quote.totalBiaya).toBe(1250000);
     });
-  });
-
-  // ============================================================================
-  // 5. Mandatory EV Full Charging Logic
-  // ============================================================================
-  describe("EV Full Charging Rules", () => {
-    const evVehicle: VehicleInput = {
-      tipeKendaraan: "MOBIL_LISTRIK",
-      nomorPlat: "B 2026 EV",
-      merekTipe: "Wuling Air EV",
-      kapasitasListrikKwh: 26.7,
-    };
 
     it("should charge full electricity when EV rents MOBIL_LISTRIK (E) garage", () => {
+      const evVehicle: VehicleInput = {
+        tipeKendaraan: "MOBIL_LISTRIK",
+        nomorPlat: "B 2026 EV",
+        merekTipe: "Wuling Air EV",
+        kapasitasListrikKwh: 26.7,
+      };
+
       const quote = service.calculateNewRental({
         tipeSewa: "HARIAN",
         jumlahHari: 2,
@@ -216,15 +216,20 @@ describe("GaragePricingService", () => {
 
       // Biaya sewa: 2 * 75.000 = 150.000
       expect(quote.biayaSewa).toBe(150000);
-
       // Biaya listrik: 26.7 * 2.500 = 66.750
       expect(quote.biayaListrik).toBe(66750);
-
       // Total biaya: 150.000 + 66.750 = 216.750
       expect(quote.totalBiaya).toBe(216750);
     });
 
     it("should NOT charge electricity (biayaListrik = 0) when EV rents regular MOBIL (C) garage", () => {
+      const evVehicle: VehicleInput = {
+        tipeKendaraan: "MOBIL_LISTRIK",
+        nomorPlat: "B 2026 EV",
+        merekTipe: "Wuling Air EV",
+        kapasitasListrikKwh: 26.7,
+      };
+
       const quote = service.calculateNewRental({
         tipeSewa: "HARIAN",
         jumlahHari: 2,
@@ -241,9 +246,9 @@ describe("GaragePricingService", () => {
   });
 
   // ============================================================================
-  // 6. Rental Extension BVA
+  // [UT-10] Rental Extension Calculation BVA
   // ============================================================================
-  describe("Rental Extension Calculation (BVA)", () => {
+  describe("[UT-10] Rental Extension Calculation (BVA)", () => {
     const oldEndDate = "2026-11-30";
     const dailyPrice = 50000;
 
@@ -267,7 +272,7 @@ describe("GaragePricingService", () => {
       ).toThrow(ValidationError);
     });
 
-    it("should calculate positive remaining balance for lower bound: +1 day extension", () => {
+    it("should calculate strictly positive remaining balance for lower bound: +1 day extension", () => {
       const ext = service.calculateExtension({
         tanggalSelesaiLama: oldEndDate,
         tanggalSelesaiBaru: "2026-12-01",
@@ -279,7 +284,7 @@ describe("GaragePricingService", () => {
       expect(ext.sisaBiaya).toBeGreaterThan(0);
     });
 
-    it("should calculate positive remaining balance for +30 days extension", () => {
+    it("should calculate strictly positive remaining balance for +30 days extension", () => {
       const ext = service.calculateExtension({
         tanggalSelesaiLama: oldEndDate,
         tanggalSelesaiBaru: "2026-12-30",

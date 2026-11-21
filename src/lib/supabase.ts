@@ -1,7 +1,7 @@
 /**
  * @file supabase.ts
  * @description Supabase client and storage upload management for payment receipts.
- * Strictly enforces file validation (MIME type, <= 5 MB size) and secret isolation.
+ * Strictly enforces file validation (MIME type JPG/PNG/WEBP, <= 5 MB size) and secret isolation.
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -9,7 +9,7 @@ import { ValidationError } from "../domain/errors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-project.supabase.co";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
-const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || "bukti-bayar";
+const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || "payment-proofs";
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -25,7 +25,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
  * @throws {ValidationError} Apabila ukuran file > 5 MB atau tipe file bukan gambar.
  */
 export async function uploadPaymentProof(file: File, folder: string = "sewa-baru"): Promise<string> {
-  // 1. Validasi tipe MIME
+  // 1. Validasi tipe MIME (JPG, PNG, WEBP)
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
     throw new ValidationError(
       `Format berkas '${file.type}' tidak didukung. Harap unggah berkas gambar dengan format JPG, PNG, atau WEBP.`
@@ -50,6 +50,7 @@ export async function uploadPaymentProof(file: File, folder: string = "sewa-baru
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder-project") &&
     process.env.SUPABASE_SERVICE_ROLE_KEY &&
+    !process.env.SUPABASE_SERVICE_ROLE_KEY.includes("dummy") &&
     !process.env.SUPABASE_SERVICE_ROLE_KEY.includes("placeholder");
 
   if (isConfigured) {
