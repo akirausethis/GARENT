@@ -1,0 +1,161 @@
+// ==============================================================================
+// GARASIKU — Prisma Schema for Supabase PostgreSQL
+// Relational Database Model for LSP Pemrogram Certification (UK 6)
+// ==============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ------------------------------------------------------------------------------
+// Enums
+// ------------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  PENYEWA
+}
+
+enum StatusVerifikasi {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TipeGarasi {
+  SEPEDA
+  MOBIL
+  MOBIL_LISTRIK
+}
+
+enum StatusGarasi {
+  AVAILABLE
+  USED
+}
+
+enum TipeKendaraan {
+  SEPEDA
+  SEPEDA_MOTOR
+  MOBIL
+  MOBIL_LISTRIK
+}
+
+enum TipeSewa {
+  HARIAN
+  BULANAN
+}
+
+// ------------------------------------------------------------------------------
+// Models (5 Normalized Relational Tables)
+// ------------------------------------------------------------------------------
+
+/// Model User: Menyimpan data Admin dan Penyewa dengan verifikasi KTP/NIK
+model User {
+  id               String           @id @default(uuid())
+  email            String           @unique
+  passwordHash     String
+  role             Role             @default(PENYEWA)
+  nik              String?          @unique // Wajib untuk Penyewa (16 digit), opsional untuk Admin
+  namaLengkap      String
+  noTelepon        String
+  statusVerifikasi StatusVerifikasi @default(PENDING)
+  verifiedById     String?
+  createdAt        DateTime         @default(now())
+
+  // Relasi self-relation untuk Admin yang memverifikasi akun
+  verifiedBy       User?            @relation("UserVerification", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedUsers    User[]           @relation("UserVerification")
+
+  // Relasi ke transaksi sewa yang dimiliki oleh penyewa
+  transaksiSewa    TransaksiSewa[]
+
+  // Relasi ke perpanjangan sewa yang diproses oleh admin
+  perpanjanganSewa PerpanjanganSewa[]
+
+  @@index([role, statusVerifikasi])
+  @@map("users")
+}
+
+/// Model Garasi: Menyimpan inventaris garasi dengan kode unik (S001, C001, E001)
+model Garasi {
+  id                 String          @id @default(uuid())
+  kodeGarasi         String          @unique // S001..S999, C001..C999, E001..E999
+  tipeGarasi         TipeGarasi
+  nomorUrut          Int             // 1..999
+  hargaSewaHarian    Decimal         @db.Decimal(12, 2)
+  hargaListrikPerKwh Decimal?        @db.Decimal(10, 2) // Hanya untuk tipe MOBIL_LISTRIK
+  status             StatusGarasi    @default(AVAILABLE)
+  createdAt          DateTime        @default(now())
+
+  transaksiSewa      TransaksiSewa[]
+
+  @@unique([tipeGarasi, nomorUrut])
+  @@index([tipeGarasi, status])
+  @@map("garasi")
+}
+
+/// Model Kendaraan: Menyimpan detail spesifikasi kendaraan yang disewakan garasi
+model Kendaraan {
+  id                  String         @id @default(uuid())
+  tipeKendaraan       TipeKendaraan
+  nomorPlat           String?        // Nullable hanya untuk SEPEDA
+  merekTipe           String
+  kapasitasListrikKwh Decimal?       @db.Decimal(6, 2) // Wajib > 0 untuk MOBIL_LISTRIK
+
+  transaksiSewa       TransaksiSewa?
+
+  @@map("kendaraan")
+}
+
+/// Model TransaksiSewa: Transaksi atomic penyewaan garasi oleh Penyewa terverifikasi
+model TransaksiSewa {
+  id                 String             @id @default(uuid())
+  penyewaId          String
+  garasiId           String
+  kendaraanId        String             @unique
+  tipeSewa           TipeSewa
+  jumlahHari         Int?               // 1..30 untuk HARIAN, null untuk BULANAN
+  tanggalMulai       DateTime           @db.Date
+  tanggalSelesai     DateTime           @db.Date
+  biayaSewa          Decimal            @db.Decimal(12, 2)
+  biayaListrik       Decimal            @default(0) @db.Decimal(12, 2)
+  totalBiaya         Decimal            @db.Decimal(12, 2)
+  buktiPelunasanUrl  String
+  createdAt          DateTime           @default(now())
+
+  penyewa            User               @relation(fields: [penyewaId], references: [id], onDelete: Restrict)
+  garasi             Garasi             @relation(fields: [garasiId], references: [id], onDelete: Restrict)
+  kendaraan          Kendaraan          @relation(fields: [kendaraanId], references: [id], onDelete: Restrict)
+  perpanjanganList   PerpanjanganSewa[]
+
+  @@index([penyewaId])
+  @@index([garasiId])
+  @@index([tanggalMulai, tanggalSelesai])
+  @@map("transaksi_sewa")
+}
+
+/// Model PerpanjanganSewa: Riwayat perpanjangan sewa garasi yang diproses oleh Admin
+model PerpanjanganSewa {
+  id                 String        @id @default(uuid())
+  transaksiSewaId    String
+  adminId            String
+  tanggalSelesaiLama DateTime      @db.Date
+  tanggalSelesaiBaru DateTime      @db.Date
+  tambahanHari       Int
+  sisaBiaya          Decimal       @db.Decimal(12, 2)
+  buktiBayarUrl      String
+  createdAt          DateTime      @default(now())
+
+  transaksiSewa      TransaksiSewa @relation(fields: [transaksiSewaId], references: [id], onDelete: Cascade)
+  admin              User          @relation(fields: [adminId], references: [id], onDelete: Restrict)
+
+  @@index([transaksiSewaId])
+  @@index([adminId])
+  @@map("perpanjangan_sewa")
+}
