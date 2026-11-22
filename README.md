@@ -135,22 +135,26 @@ erDiagram
 
 ---
 
-## 🧪 Hasil Pengujian Unit (Unit Testing — Vitest)
+## 🧪 Hasil Pengujian Unit & Black-Box (Vitest — 132/132 LULUS)
 
 ```bash
 npm test
 ```
 
 ```text
- ✓ src/tests/garageCodeGenerator.test.ts (8 tests)
- ✓ src/tests/garasiEntity.test.ts (8 tests)
- ✓ src/tests/pricingService.test.ts (20 tests)
+ ✓ src/tests/garageCodeGenerator.test.ts (9 tests)
+ ✓ src/tests/garasiEntity.test.ts (14 tests)
+ ✓ src/tests/pricingService.test.ts (25 tests)
  ✓ tests/garageService.test.ts (9 tests)
- ✓ tests/rentalService.test.ts (17 tests)
+ ✓ tests/rentalService.test.ts (19 tests)
+ ✓ tests/blackbox.test.ts (18 tests)
+ ✓ tests/lsp/auth.service.test.ts (6 tests)
+ ✓ tests/lsp/garage.service.test.ts (10 tests)
+ ✓ tests/lsp/rental.service.test.ts (22 tests)
 
- Test Files  5 passed (5)
-      Tests  62 passed (62)
-   Duration  2.47s
+ Test Files  9 passed (9)
+      Tests  132 passed (132)
+   Duration  2.07s
 ```
 
 ---
