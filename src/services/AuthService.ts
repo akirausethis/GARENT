@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { ForbiddenError, UnauthorizedError, ConflictError, ValidationError } from "@/domain/errors";
 
 export interface RegisterPenyewaInput {
   nik: string;
@@ -114,24 +115,24 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new Error("Email atau kata sandi yang Anda masukkan salah.");
+      throw new UnauthorizedError("Email atau kata sandi yang Anda masukkan salah.");
     }
 
     // 2. Verifikasi kecocokan kata sandi
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      throw new Error("Email atau kata sandi yang Anda masukkan salah.");
+      throw new UnauthorizedError("Email atau kata sandi yang Anda masukkan salah.");
     }
 
     // 3. Blokir penyewa yang belum diverifikasi
     if (user.role === "penyewa") {
       if (user.verificationStatus === "pending") {
-        throw new Error(
+        throw new ForbiddenError(
           "Login ditolak: Akun Anda masih dalam antrean verifikasi KTP/NIK oleh Admin. Mohon tunggu proses peninjauan."
         );
       }
       if (user.verificationStatus === "rejected") {
-        throw new Error(
+        throw new ForbiddenError(
           "Login ditolak: Pendaftaran akun Anda telah ditolak oleh Admin. Silakan hubungi pengelola operasional garasi."
         );
       }

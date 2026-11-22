@@ -5,6 +5,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { ValidationError, CapacityExceededError } from "@/domain/errors";
 
 export type GarageType = "sepeda" | "mobil" | "mobil_listrik";
 export type GarageStatus = "available" | "used";
@@ -60,7 +61,7 @@ export class GarageService {
    */
   public static generateGarageCode(type: GarageType, sequenceNumber: number): string {
     if (sequenceNumber < 1 || sequenceNumber > this.MAX_UNITS_PER_TYPE) {
-      throw new Error(
+      throw new ValidationError(
         `Nomor urut garasi harus berada pada rentang 1 hingga ${this.MAX_UNITS_PER_TYPE}. Diterima: ${sequenceNumber}`
       );
     }
@@ -84,15 +85,15 @@ export class GarageService {
     quantity: number
   ): GeneratedBatchResult {
     if (quantity <= 0) {
-      throw new Error("Jumlah garasi yang dibuat harus minimal 1 unit.");
+      throw new ValidationError("Jumlah garasi yang dibuat harus minimal 1 unit.");
     }
     if (currentMax < 0) {
-      throw new Error("Nomor urut maksimum saat ini tidak boleh bernilai negatif.");
+      throw new ValidationError("Nomor urut maksimum saat ini tidak boleh bernilai negatif.");
     }
 
     const targetMax = currentMax + quantity;
     if (targetMax > this.MAX_UNITS_PER_TYPE) {
-      throw new Error(
+      throw new CapacityExceededError(
         `Jumlah total garasi tipe ${type} tidak boleh melebihi batas maksimum ${this.MAX_UNITS_PER_TYPE}. Saat ini terdapat ${currentMax} garasi, penambahan ${quantity} akan menghasilkan total ${targetMax}.`
       );
     }
@@ -137,11 +138,11 @@ export class GarageService {
     const { type, quantity, dailyPrice, kwhPrice } = params;
 
     if (dailyPrice <= 0) {
-      throw new Error("Harga sewa harian harus bernilai lebih dari 0.");
+      throw new ValidationError("Harga sewa harian harus bernilai lebih dari 0.");
     }
 
     if (type === "mobil_listrik" && (!kwhPrice || kwhPrice <= 0)) {
-      throw new Error("Harga listrik per kWh wajib diisi dan lebih dari 0 untuk garasi mobil listrik.");
+      throw new ValidationError("Harga listrik per kWh wajib diisi dan lebih dari 0 untuk garasi mobil listrik.");
     }
 
     // 1. Dapatkan sequence number terakhir

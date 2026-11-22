@@ -50,11 +50,35 @@ export function errorResponse(error: unknown) {
 
   console.error("Unhandled API error:", error);
   const message = error instanceof Error ? error.message : "Terjadi kesalahan internal pada server.";
+  
+  // Deteksi status HTTP berbasis pesan domain umum
+  let status = 500;
+  const lowerMsg = message.toLowerCase();
+  if (lowerMsg.includes("sesi anda telah berakhir") || lowerMsg.includes("belum login") || lowerMsg.includes("unauthorized")) {
+    status = 401;
+  } else if (
+    lowerMsg.includes("akses ditolak") ||
+    lowerMsg.includes("menunggu proses verifikasi") ||
+    lowerMsg.includes("antrean verifikasi") ||
+    lowerMsg.includes("hanya dapat diakses oleh admin") ||
+    lowerMsg.includes("khusus untuk akun penyewa") ||
+    lowerMsg.includes("forbidden")
+  ) {
+    status = 403;
+  } else if (
+    lowerMsg.includes("wajib") ||
+    lowerMsg.includes("tidak valid") ||
+    lowerMsg.includes("harus") ||
+    lowerMsg.includes("melebihi")
+  ) {
+    status = 400;
+  }
+
   return NextResponse.json(
     {
       success: false,
       error: message,
     },
-    { status: 500 }
+    { status }
   );
 }

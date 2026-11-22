@@ -6,6 +6,7 @@
 
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { UnauthorizedError, ForbiddenError } from "@/domain/errors";
 
 const COOKIE_NAME = "garent_session";
 const DEFAULT_SECRET = "garent-super-secret-jwt-signing-key-32chars-min!";
@@ -81,7 +82,7 @@ export async function destroySession(): Promise<void> {
 export async function requireAuth(): Promise<SessionPayload> {
   const session = await getSession();
   if (!session) {
-    throw new Error("Sesi Anda telah berakhir. Silakan login kembali.");
+    throw new UnauthorizedError("Sesi Anda telah berakhir. Silakan login kembali.");
   }
   return session;
 }
@@ -94,17 +95,17 @@ export async function requireApprovedPenyewa(): Promise<SessionPayload> {
   const session = await requireAuth();
 
   if (session.role.toLowerCase() !== "penyewa") {
-    throw new Error("Akses khusus untuk akun Penyewa.");
+    throw new ForbiddenError("Akses khusus untuk akun Penyewa.");
   }
 
   if (session.statusVerifikasi.toLowerCase() === "pending") {
-    throw new Error(
+    throw new ForbiddenError(
       "Akun Anda sedang dalam proses verifikasi KTP/NIK oleh Admin. Anda belum dapat melakukan penyewaan garasi hingga akun disetujui."
     );
   }
 
   if (session.statusVerifikasi.toLowerCase() === "rejected") {
-    throw new Error(
+    throw new ForbiddenError(
       "Pendaftaran akun Anda ditolak oleh Admin. Silakan hubungi operator garasi untuk klarifikasi data NIK/KTP."
     );
   }
@@ -119,7 +120,7 @@ export async function requireApprovedPenyewa(): Promise<SessionPayload> {
 export async function requireAdmin(): Promise<SessionPayload> {
   const session = await requireAuth();
   if (session.role.toLowerCase() !== "admin") {
-    throw new Error("Akses ditolak. Halaman ini hanya dapat diakses oleh Admin.");
+    throw new ForbiddenError("Akses ditolak. Halaman ini hanya dapat diakses oleh Admin.");
   }
   return session;
 }
