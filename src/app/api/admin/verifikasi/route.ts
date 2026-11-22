@@ -4,6 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 import { AuthService } from "@/services/AuthService";
 import { successResponse, errorResponse } from "@/lib/api-response";
 
+export const dynamic = "force-dynamic";
+
 const authService = new AuthService();
 
 const verificationActionSchema = z.object({
@@ -24,7 +26,20 @@ export async function GET(req: NextRequest) {
 
     const applicants = await authService.getApplicants(status);
 
-    return successResponse({ applicants });
+    const formatted = applicants.map((a) => ({
+      id: a.id,
+      nik: a.nik,
+      fullName: a.fullName,
+      namaLengkap: a.fullName,
+      email: a.email,
+      phoneNumber: a.phoneNumber,
+      noTelepon: a.phoneNumber,
+      verificationStatus: a.verificationStatus.toLowerCase(),
+      statusVerifikasi: a.verificationStatus.toUpperCase(),
+      createdAt: a.createdAt.toISOString(),
+    }));
+
+    return successResponse({ applicants: formatted });
   } catch (err) {
     return errorResponse(err);
   }

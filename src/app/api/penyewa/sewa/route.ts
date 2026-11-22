@@ -7,6 +7,8 @@ import { GarasiEntity, GarasiMobilListrikEntity } from "@/domain/entities/Garasi
 import { TipeKendaraan, TipeGarasi, TipeSewa } from "@/domain/types";
 import { successResponse, errorResponse } from "@/lib/api-response";
 
+export const dynamic = "force-dynamic";
+
 const pricingService = new GaragePricingService();
 
 /**
@@ -31,7 +33,30 @@ export async function GET() {
     const formatted = rentals.map((r) => ({
       id: r.id,
       penyewaId: r.userId,
+      userId: r.userId,
       garasiId: r.garageId,
+      garageId: r.garageId,
+      vehicleType: r.vehicleType,
+      tipeKendaraan: r.vehicleType.toUpperCase(),
+      plateNumber: r.plateNumber,
+      nomorPlat: r.plateNumber,
+      vehicleBrandType: r.vehicleBrandType,
+      merekTipe: r.vehicleBrandType,
+      maxBatteryKwh: r.maxBatteryKwh ? Number(r.maxBatteryKwh) : null,
+      kapasitasListrikKwh: r.maxBatteryKwh ? Number(r.maxBatteryKwh) : null,
+      currentBatteryKwh: r.currentBatteryKwh ? Number(r.currentBatteryKwh) : null,
+      garage: {
+        id: r.garage.id,
+        code: r.garage.code,
+        kodeGarasi: r.garage.code,
+        type: r.garage.type,
+        tipeGarasi: r.garage.type.toUpperCase(),
+        dailyPrice: Number(r.garage.dailyPrice),
+        hargaSewaHarian: Number(r.garage.dailyPrice),
+        kwhPrice: r.garage.kwhPrice ? Number(r.garage.kwhPrice) : null,
+        hargaListrikPerKwh: r.garage.kwhPrice ? Number(r.garage.kwhPrice) : null,
+        status: r.garage.status,
+      },
       garasi: {
         id: r.garage.id,
         kodeGarasi: r.garage.code,
@@ -82,7 +107,16 @@ export async function GET() {
         buktiBayarUrl: ext.paymentProofUrl,
         createdAt: ext.createdAt.toISOString(),
       })),
-      extensions: r.extensions,
+      extensions: r.extensions.map((ext) => ({
+        id: ext.id,
+        rentalId: ext.rentalId,
+        oldEndDate: ext.oldEndDate.toISOString().split("T")[0],
+        newEndDate: ext.newEndDate.toISOString().split("T")[0],
+        additionalDays: ext.additionalDays,
+        additionalCost: Number(ext.additionalCost),
+        paymentProofUrl: ext.paymentProofUrl,
+        createdAt: ext.createdAt.toISOString(),
+      })),
       createdAt: r.createdAt.toISOString(),
     }));
 

@@ -130,7 +130,7 @@ export default function LoginPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
             <button
               type="button"
-              onClick={() => fillCredentials("admin@garasi.com", "Admin123!")}
+              onClick={() => fillCredentials("admin@garasi.com", "admin123")}
               className="px-2 py-1.5 text-left border border-slate-200 rounded hover:bg-slate-50 transition-colors"
             >
               <div className="font-medium text-slate-900 flex items-center gap-1">
@@ -142,7 +142,7 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() => fillCredentials("budi@gmail.com", "Penyewa123!")}
+              onClick={() => fillCredentials("budi@gmail.com", "penyewa123")}
               className="px-2 py-1.5 text-left border border-slate-200 rounded hover:bg-slate-50 transition-colors"
             >
               <div className="font-medium text-slate-900 flex items-center gap-1">
@@ -154,7 +154,7 @@ export default function LoginPage() {
 
             <button
               type="button"
-              onClick={() => fillCredentials("siti@gmail.com", "Penyewa123!")}
+              onClick={() => fillCredentials("siti@gmail.com", "pending123")}
               className="px-2 py-1.5 text-left border border-slate-200 rounded hover:bg-slate-50 transition-colors"
             >
               <div className="font-medium text-slate-900 flex items-center gap-1">

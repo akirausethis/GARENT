@@ -8,7 +8,8 @@ async function main() {
 
   // 1. Hash passwords
   const adminPasswordHash = await bcrypt.hash("admin123", 10);
-  const penyewaPasswordHash = await bcrypt.hash("Penyewa123!", 10);
+  const budiPasswordHash = await bcrypt.hash("penyewa123", 10);
+  const sitiPasswordHash = await bcrypt.hash("pending123", 10);
 
   // 2. Seed 1 Admin (admin@garasi.com / admin123)
   const admin = await prisma.user.upsert({
@@ -35,7 +36,7 @@ async function main() {
   const penyewaApproved = await prisma.user.upsert({
     where: { email: "budi@gmail.com" },
     update: {
-      passwordHash: penyewaPasswordHash,
+      passwordHash: budiPasswordHash,
       role: "penyewa",
       nik: "3171012345670001",
       fullName: "Budi Santoso",
@@ -44,7 +45,7 @@ async function main() {
     },
     create: {
       email: "budi@gmail.com",
-      passwordHash: penyewaPasswordHash,
+      passwordHash: budiPasswordHash,
       role: "penyewa",
       nik: "3171012345670001",
       fullName: "Budi Santoso",
@@ -57,7 +58,7 @@ async function main() {
   const penyewaPending = await prisma.user.upsert({
     where: { email: "siti@gmail.com" },
     update: {
-      passwordHash: penyewaPasswordHash,
+      passwordHash: sitiPasswordHash,
       role: "penyewa",
       nik: "3273019876540002",
       fullName: "Siti Rahmawati",
@@ -66,7 +67,7 @@ async function main() {
     },
     create: {
       email: "siti@gmail.com",
-      passwordHash: penyewaPasswordHash,
+      passwordHash: sitiPasswordHash,
       role: "penyewa",
       nik: "3273019876540002",
       fullName: "Siti Rahmawati",

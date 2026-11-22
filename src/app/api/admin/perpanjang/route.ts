@@ -5,6 +5,8 @@ import { uploadBuktiBayar } from "@/lib/supabase";
 import { GaragePricingService } from "@/domain/services/GaragePricingService";
 import { successResponse, errorResponse } from "@/lib/api-response";
 
+export const dynamic = "force-dynamic";
+
 const pricingService = new GaragePricingService();
 
 /**

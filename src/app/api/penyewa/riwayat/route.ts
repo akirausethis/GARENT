@@ -2,6 +2,8 @@ import { requireApprovedPenyewa } from "@/lib/auth";
 import { RentalService } from "@/services/RentalService";
 import { successResponse, errorResponse } from "@/lib/api-response";
 
+export const dynamic = "force-dynamic";
+
 const rentalService = new RentalService();
 
 export async function GET() {

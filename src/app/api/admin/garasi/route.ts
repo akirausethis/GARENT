@@ -4,6 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 import { GarageService, GarageType, GarageStatus } from "@/services/GarageService";
 import { successResponse, errorResponse } from "@/lib/api-response";
 
+export const dynamic = "force-dynamic";
+
 const garageService = new GarageService();
 
 const batchGarasiSchema = z.object({
@@ -21,15 +23,41 @@ export async function GET(req: NextRequest) {
     await requireAdmin();
 
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type") as GarageType | null;
-    const status = searchParams.get("status") as GarageStatus | null;
+    const typeParam = searchParams.get("type") || searchParams.get("tipe");
+    const statusParam = searchParams.get("status");
+
+    const type =
+      typeParam && typeParam !== "ALL"
+        ? (typeParam.toLowerCase() as GarageType)
+        : undefined;
+    const status =
+      statusParam && statusParam !== "ALL"
+        ? (statusParam.toLowerCase() as GarageStatus)
+        : undefined;
 
     const garages = await garageService.getAllGarages({
-      type: type && type !== ("ALL" as any) ? type : undefined,
-      status: status && status !== ("ALL" as any) ? status : undefined,
+      type,
+      status,
     });
 
-    return successResponse({ garages });
+    const formatted = garages.map((g) => ({
+      id: g.id,
+      code: g.code,
+      kodeGarasi: g.code,
+      type: g.type.toLowerCase(),
+      tipeGarasi: g.type.toUpperCase(),
+      sequenceNumber: g.sequenceNumber,
+      nomorUrut: g.sequenceNumber,
+      dailyPrice: Number(g.dailyPrice),
+      hargaSewaHarian: Number(g.dailyPrice),
+      kwhPrice: g.kwhPrice ? Number(g.kwhPrice) : null,
+      hargaListrikPerKwh: g.kwhPrice ? Number(g.kwhPrice) : null,
+      status: g.status.toLowerCase(),
+      statusUpper: g.status.toUpperCase(),
+      createdAt: g.createdAt.toISOString(),
+    }));
+
+    return successResponse({ garages: formatted });
   } catch (err) {
     return errorResponse(err);
   }
@@ -40,11 +68,16 @@ export async function POST(req: NextRequest) {
     await requireAdmin();
 
     const body = await req.json();
+    const rawType = (body.tipeGarasi || body.type || "")
+      .toString()
+      .trim()
+      .toLowerCase();
+
     const data = batchGarasiSchema.parse({
-      tipeGarasi: body.tipeGarasi || body.type,
+      tipeGarasi: rawType,
       quantity: body.quantity ? Number(body.quantity) : 0,
       dailyPrice: body.dailyPrice ? Number(body.dailyPrice) : (body.hargaSewaHarian ? Number(body.hargaSewaHarian) : 0),
-      kwhPrice: body.kwhPrice !== undefined ? (body.kwhPrice ? Number(body.kwhPrice) : null) : (body.hargaListrikPerKwh ? Number(body.hargaListrikPerKwh) : null),
+      kwhPrice: body.kwhPrice !== undefined && body.kwhPrice !== null ? (body.kwhPrice ? Number(body.kwhPrice) : null) : (body.hargaListrikPerKwh ? Number(body.hargaListrikPerKwh) : null),
     });
 
     const result = await garageService.bulkCreateGarages({

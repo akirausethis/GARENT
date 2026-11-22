@@ -23,12 +23,17 @@ import {
 
 interface GarageRecord {
   id: string;
-  kodeGarasi: string;
-  tipeGarasi: "SEPEDA" | "MOBIL" | "MOBIL_LISTRIK";
-  nomorUrut: number;
-  hargaSewaHarian: number;
-  hargaListrikPerKwh: number | null;
-  status: "AVAILABLE" | "USED";
+  kodeGarasi?: string;
+  code?: string;
+  tipeGarasi?: "SEPEDA" | "MOBIL" | "MOBIL_LISTRIK" | string;
+  type?: string;
+  nomorUrut?: number;
+  sequenceNumber?: number;
+  hargaSewaHarian?: number;
+  dailyPrice?: number;
+  hargaListrikPerKwh?: number | null;
+  kwhPrice?: number | null;
+  status: "AVAILABLE" | "USED" | "available" | "used" | string;
   createdAt: string;
   _count?: {
     transaksiSewa: number;
@@ -89,10 +94,12 @@ export default function AdminGarasiPage() {
 
   // Live preview calculation of sequential garage IDs
   const codePreview = useMemo(() => {
-    const existingTypeGarages = garages.filter((g) => g.tipeGarasi === tipeGarasi);
+    const existingTypeGarages = garages.filter(
+      (g) => (g.tipeGarasi || g.type || "").toUpperCase() === tipeGarasi.toUpperCase()
+    );
     const currentMax =
       existingTypeGarages.length > 0
-        ? Math.max(...existingTypeGarages.map((g) => g.nomorUrut))
+        ? Math.max(...existingTypeGarages.map((g) => g.nomorUrut || g.sequenceNumber || 0))
         : 0;
     const prefix = tipeGarasi === "SEPEDA" ? "S" : tipeGarasi === "MOBIL" ? "C" : "E";
 
@@ -152,7 +159,7 @@ export default function AdminGarasiPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tipeGarasi,
+          tipeGarasi: tipeGarasi.toLowerCase(),
           quantity: Number(quantity),
           hargaSewaHarian: Number(hargaSewaHarian),
           hargaListrikPerKwh: tipeGarasi === "MOBIL_LISTRIK" ? Number(hargaListrikPerKwh) : null,
@@ -179,12 +186,14 @@ export default function AdminGarasiPage() {
   // Filtered and searched inventory
   const filteredGarages = useMemo(() => {
     return garages.filter((g) => {
-      if (filterType !== "ALL" && g.tipeGarasi !== filterType) return false;
-      if (filterStatus !== "ALL" && g.status !== filterStatus) return false;
+      const gType = (g.tipeGarasi || g.type || "").toUpperCase();
+      const gStatus = (g.status || "").toLowerCase();
+      if (filterType !== "ALL" && gType !== filterType.toUpperCase()) return false;
+      if (filterStatus !== "ALL" && gStatus !== filterStatus.toLowerCase()) return false;
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const matchCode = g.kodeGarasi.toLowerCase().includes(query);
-        const matchType = g.tipeGarasi.toLowerCase().includes(query);
+        const matchCode = (g.kodeGarasi || g.code || "").toLowerCase().includes(query);
+        const matchType = gType.toLowerCase().includes(query);
         return matchCode || matchType;
       }
       return true;
@@ -192,9 +201,9 @@ export default function AdminGarasiPage() {
   }, [garages, filterType, filterStatus, searchQuery]);
 
   // Inventory summary counts
-  const sepedaCount = garages.filter((g) => g.tipeGarasi === "SEPEDA").length;
-  const mobilCount = garages.filter((g) => g.tipeGarasi === "MOBIL").length;
-  const evCount = garages.filter((g) => g.tipeGarasi === "MOBIL_LISTRIK").length;
+  const sepedaCount = garages.filter((g) => (g.tipeGarasi || g.type || "").toUpperCase() === "SEPEDA").length;
+  const mobilCount = garages.filter((g) => (g.tipeGarasi || g.type || "").toUpperCase() === "MOBIL").length;
+  const evCount = garages.filter((g) => (g.tipeGarasi || g.type || "").toUpperCase() === "MOBIL_LISTRIK").length;
 
   return (
     <div className="space-y-6">
@@ -494,82 +503,91 @@ export default function AdminGarasiPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredGarages.map((garage) => (
-                  <TableRow key={garage.id}>
-                    <TableCell>
-                      <span className="font-mono font-bold text-xs text-slate-900">
-                        {garage.kodeGarasi}
-                      </span>
-                    </TableCell>
+                {filteredGarages.map((garage) => {
+                  const gCode = garage.kodeGarasi || garage.code || "-";
+                  const gType = (garage.tipeGarasi || garage.type || "").toUpperCase();
+                  const gNum = garage.nomorUrut || garage.sequenceNumber || 0;
+                  const gDaily = Number(garage.hargaSewaHarian || garage.dailyPrice || 0);
+                  const gKwh = garage.hargaListrikPerKwh || garage.kwhPrice;
+                  const isAvailable = (garage.status || "").toLowerCase() === "available";
 
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        {garage.tipeGarasi === "SEPEDA" ? (
-                          <Bike className="w-3.5 h-3.5 text-emerald-600" />
-                        ) : garage.tipeGarasi === "MOBIL_LISTRIK" ? (
-                          <Zap className="w-3.5 h-3.5 text-teal-600" />
-                        ) : (
-                          <Car className="w-3.5 h-3.5 text-blue-600" />
-                        )}
-                        <Badge
-                          variant={
-                            garage.tipeGarasi === "SEPEDA"
-                              ? "sepeda"
-                              : garage.tipeGarasi === "MOBIL"
-                              ? "mobil"
-                              : "mobil_listrik"
-                          }
-                        >
-                          {garage.tipeGarasi}
-                        </Badge>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <span className="font-mono text-slate-600">#{garage.nomorUrut}</span>
-                    </TableCell>
-
-                    <TableCell>
-                      <span className="font-mono font-medium text-slate-900">
-                        {formatRupiah(garage.hargaSewaHarian)}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      <span className="font-mono font-medium text-slate-700">
-                        {formatRupiah(25 * Number(garage.hargaSewaHarian))}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      {garage.hargaListrikPerKwh ? (
-                        <span className="font-mono text-teal-700">
-                          {formatRupiah(garage.hargaListrikPerKwh)}/kWh
+                  return (
+                    <TableRow key={garage.id}>
+                      <TableCell>
+                        <span className="font-mono font-bold text-xs text-slate-900">
+                          {gCode}
                         </span>
-                      ) : (
-                        <span className="text-slate-400 font-mono">-</span>
-                      )}
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell>
-                      <Badge variant={garage.status === "AVAILABLE" ? "available" : "used"}>
-                        {garage.status === "AVAILABLE" ? "Tersedia" : "Terpakai"}
-                      </Badge>
-                    </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {gType === "SEPEDA" ? (
+                            <Bike className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : gType === "MOBIL_LISTRIK" ? (
+                            <Zap className="w-3.5 h-3.5 text-teal-600" />
+                          ) : (
+                            <Car className="w-3.5 h-3.5 text-blue-600" />
+                          )}
+                          <Badge
+                            variant={
+                              gType === "SEPEDA"
+                                ? "sepeda"
+                                : gType === "MOBIL"
+                                ? "mobil"
+                                : "mobil_listrik"
+                            }
+                          >
+                            {gType}
+                          </Badge>
+                        </div>
+                      </TableCell>
 
-                    <TableCell>
-                      <span className="font-mono text-slate-600">
-                        {garage._count?.transaksiSewa || 0}x
-                      </span>
-                    </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-slate-600">#{gNum}</span>
+                      </TableCell>
 
-                    <TableCell>
-                      <span className="text-slate-500 font-mono text-[11px]">
-                        {formatDate(garage.createdAt)}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        <span className="font-mono font-medium text-slate-900">
+                          {formatRupiah(gDaily)}
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="font-mono font-medium text-slate-700">
+                          {formatRupiah(25 * gDaily)}
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        {gKwh ? (
+                          <span className="font-mono text-teal-700">
+                            {formatRupiah(Number(gKwh))}/kWh
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-mono">-</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        <Badge variant={isAvailable ? "available" : "used"}>
+                          {isAvailable ? "Tersedia" : "Terpakai"}
+                        </Badge>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="font-mono text-slate-600">
+                          {garage._count?.transaksiSewa || 0}x
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="text-slate-500 font-mono text-[11px]">
+                          {formatDate(garage.createdAt)}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

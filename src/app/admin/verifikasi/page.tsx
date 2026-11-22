@@ -22,15 +22,19 @@ import {
 interface ApplicantRecord {
   id: string;
   nik: string | null;
-  namaLengkap: string;
+  namaLengkap?: string;
+  fullName?: string;
   email: string;
-  noTelepon: string;
-  statusVerifikasi: "PENDING" | "APPROVED" | "REJECTED";
-  verifiedById: string | null;
+  noTelepon?: string;
+  phoneNumber?: string;
+  statusVerifikasi?: string;
+  verificationStatus?: string;
+  verifiedById?: string | null;
   createdAt: string;
   verifiedBy?: {
     id: string;
-    namaLengkap: string;
+    namaLengkap?: string;
+    fullName?: string;
     email: string;
   } | null;
 }
@@ -100,22 +104,29 @@ export default function AdminVerifikasiPage() {
   // Filtered applicants based on tab and search
   const filteredApplicants = useMemo(() => {
     return applicants.filter((app) => {
-      if (activeTab !== "ALL" && app.statusVerifikasi !== activeTab) return false;
+      const status = (app.statusVerifikasi || app.verificationStatus || "").toUpperCase();
+      if (activeTab !== "ALL" && status !== activeTab) return false;
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const matchName = app.namaLengkap.toLowerCase().includes(query);
-        const matchNik = app.nik?.includes(query);
-        const matchEmail = app.email.toLowerCase().includes(query);
-        const matchPhone = app.noTelepon.includes(query);
+        const matchName = (app.namaLengkap || app.fullName || "").toLowerCase().includes(query);
+        const matchNik = (app.nik || "").includes(query);
+        const matchEmail = (app.email || "").toLowerCase().includes(query);
+        const matchPhone = (app.noTelepon || app.phoneNumber || "").includes(query);
         return matchName || matchNik || matchEmail || matchPhone;
       }
       return true;
     });
   }, [applicants, activeTab, searchQuery]);
 
-  const pendingCount = applicants.filter((a) => a.statusVerifikasi === "PENDING").length;
-  const approvedCount = applicants.filter((a) => a.statusVerifikasi === "APPROVED").length;
-  const rejectedCount = applicants.filter((a) => a.statusVerifikasi === "REJECTED").length;
+  const pendingCount = applicants.filter(
+    (a) => (a.statusVerifikasi || a.verificationStatus || "").toUpperCase() === "PENDING"
+  ).length;
+  const approvedCount = applicants.filter(
+    (a) => (a.statusVerifikasi || a.verificationStatus || "").toUpperCase() === "APPROVED"
+  ).length;
+  const rejectedCount = applicants.filter(
+    (a) => (a.statusVerifikasi || a.verificationStatus || "").toUpperCase() === "REJECTED"
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -299,8 +310,11 @@ export default function AdminVerifikasiPage() {
               </TableHeader>
               <TableBody>
                 {filteredApplicants.map((app) => {
-                  const isPending = app.statusVerifikasi === "PENDING";
+                  const status = (app.statusVerifikasi || app.verificationStatus || "").toUpperCase();
+                  const isPending = status === "PENDING";
                   const isProcessing = processingId === app.id;
+                  const name = app.namaLengkap || app.fullName || "Penyewa";
+                  const phone = app.noTelepon || app.phoneNumber || "-";
 
                   return (
                     <TableRow key={app.id}>
@@ -317,7 +331,7 @@ export default function AdminVerifikasiPage() {
                       {/* Nama */}
                       <TableCell>
                         <span className="font-semibold text-xs text-slate-900 block">
-                          {app.namaLengkap}
+                          {name}
                         </span>
                       </TableCell>
 
@@ -325,7 +339,7 @@ export default function AdminVerifikasiPage() {
                       <TableCell>
                         <div className="space-y-0.5 text-xs">
                           <div className="text-slate-800">{app.email}</div>
-                          <div className="font-mono text-[11px] text-slate-500">{app.noTelepon}</div>
+                          <div className="font-mono text-[11px] text-slate-500">{phone}</div>
                         </div>
                       </TableCell>
 
@@ -340,16 +354,16 @@ export default function AdminVerifikasiPage() {
                       <TableCell>
                         <Badge
                           variant={
-                            app.statusVerifikasi === "APPROVED"
+                            status === "APPROVED"
                               ? "approved"
-                              : app.statusVerifikasi === "REJECTED"
+                              : status === "REJECTED"
                               ? "rejected"
                               : "pending"
                           }
                         >
-                          {app.statusVerifikasi === "APPROVED"
+                          {status === "APPROVED"
                             ? "Disetujui"
-                            : app.statusVerifikasi === "REJECTED"
+                            : status === "REJECTED"
                             ? "Ditolak"
                             : "Menunggu Review"}
                         </Badge>
@@ -360,7 +374,7 @@ export default function AdminVerifikasiPage() {
                         {app.verifiedBy ? (
                           <div className="text-xs">
                             <span className="font-medium text-slate-800 block">
-                              {app.verifiedBy.namaLengkap}
+                              {app.verifiedBy.namaLengkap || app.verifiedBy.fullName}
                             </span>
                             <span className="text-[10px] text-slate-400 font-mono">
                               {app.verifiedBy.email}
@@ -379,7 +393,7 @@ export default function AdminVerifikasiPage() {
                               size="sm"
                               variant="primary"
                               isLoading={isProcessing}
-                              onClick={() => handleAction(app.id, "APPROVE", app.namaLengkap)}
+                              onClick={() => handleAction(app.id, "APPROVE", name)}
                               icon={<Check className="w-3.5 h-3.5" />}
                             >
                               Terima
@@ -388,7 +402,7 @@ export default function AdminVerifikasiPage() {
                               size="sm"
                               variant="danger"
                               isLoading={isProcessing}
-                              onClick={() => handleAction(app.id, "REJECT", app.namaLengkap)}
+                              onClick={() => handleAction(app.id, "REJECT", name)}
                               icon={<X className="w-3.5 h-3.5" />}
                             >
                               Tolak

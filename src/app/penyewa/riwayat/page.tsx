@@ -205,6 +205,9 @@ export default function RiwayatSewaPage() {
               {rentals.map((r) => {
                 const isExpanded = !!expandedRentalIds[r.id];
                 const hasExtensions = r.extensions && r.extensions.length > 0;
+                const garageCode = r.garage?.code || (r as any).garasi?.code || (r as any).garasi?.kodeGarasi || "-";
+                const garageType = (r.garage?.type || (r as any).garasi?.type || "").toLowerCase();
+                const status = (r.status || "").toLowerCase();
 
                 return (
                   <div key={r.id} className="p-4 sm:p-5 hover:bg-slate-50/60 transition-colors">
@@ -212,35 +215,35 @@ export default function RiwayatSewaPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2.5">
                         <span className="font-mono font-bold text-base text-slate-900 px-2 py-0.5 bg-slate-100 rounded border border-slate-200">
-                          {r.garage.code}
+                          {garageCode}
                         </span>
                         <Badge
                           variant={
-                            r.garage.type === "sepeda"
+                            garageType === "sepeda"
                               ? "sepeda"
-                              : r.garage.type === "mobil"
+                              : garageType === "mobil"
                               ? "mobil"
                               : "mobil_listrik"
                           }
                         >
-                          {r.garage.type === "sepeda"
+                          {garageType === "sepeda"
                             ? "SEPEDA (S)"
-                            : r.garage.type === "mobil"
+                            : garageType === "mobil"
                             ? "MOBIL (C)"
                             : "EV CHARGE (E)"}
                         </Badge>
 
-                        {r.status === "active" && (
+                        {status === "active" && (
                           <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                             AKTIF
                           </span>
                         )}
-                        {r.status === "extended" && (
+                        {status === "extended" && (
                           <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">
                             DIPERPANJANG
                           </span>
                         )}
-                        {r.status === "completed" && (
+                        {status === "completed" && (
                           <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                             SELESAI
                           </span>

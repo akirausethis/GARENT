@@ -290,12 +290,11 @@ export default function PerpanjangSewaPage() {
 
   const filteredRentals = activeRentals.filter((r) => {
     const q = searchQuery.toLowerCase();
-    return (
-      r.garage.code.toLowerCase().includes(q) ||
-      r.user.fullName.toLowerCase().includes(q) ||
-      (r.plateNumber && r.plateNumber.toLowerCase().includes(q)) ||
-      r.vehicleBrandType.toLowerCase().includes(q)
-    );
+    const gCode = (r.garage?.code || (r as any).garasi?.code || "").toLowerCase();
+    const uName = (r.user?.fullName || (r as any).penyewa?.fullName || (r as any).penyewa?.namaLengkap || "").toLowerCase();
+    const plate = (r.plateNumber || "").toLowerCase();
+    const brand = (r.vehicleBrandType || "").toLowerCase();
+    return gCode.includes(q) || uName.includes(q) || plate.includes(q) || brand.includes(q);
   });
 
   const { additionalDays, additionalCost, isInvalid } = calculateAdditionalCost();
@@ -379,58 +378,66 @@ export default function PerpanjangSewaPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredRentals.map((rental) => (
-                    <tr key={rental.id} className="hover:bg-slate-50/50 transition-colors">
-                      {/* Kode Garasi */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-sm text-slate-900 px-2 py-0.5 bg-slate-100 rounded border border-slate-200">
-                            {rental.garage.code}
-                          </span>
-                          <Badge
-                            variant={
-                              rental.garage.type === "sepeda"
-                                ? "sepeda"
-                                : rental.garage.type === "mobil"
-                                ? "mobil"
-                                : "mobil_listrik"
-                            }
-                          >
-                            {rental.garage.type.replace("_", " ").toUpperCase()}
-                          </Badge>
-                        </div>
-                      </td>
+                  {filteredRentals.map((rental) => {
+                    const garageCode = rental.garage?.code || (rental as any).garasi?.code || "-";
+                    const garageType = ((rental.garage?.type || (rental as any).garasi?.type || "") as string).toLowerCase();
+                    const userName = rental.user?.fullName || (rental as any).penyewa?.fullName || (rental as any).penyewa?.namaLengkap || "-";
+                    const userEmail = rental.user?.email || (rental as any).penyewa?.email || "";
+                    const userPhone = rental.user?.phoneNumber || (rental as any).penyewa?.phoneNumber || (rental as any).penyewa?.noTelepon || "";
+                    const dailyPrice = Number(rental.garage?.dailyPrice || (rental as any).garasi?.dailyPrice || (rental as any).garasi?.hargaSewaHarian || 0);
 
-                      {/* Penyewa */}
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900">{rental.user.fullName}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {rental.user.email} &bull; {rental.user.phoneNumber}
-                        </div>
-                      </td>
+                    return (
+                      <tr key={rental.id} className="hover:bg-slate-50/50 transition-colors">
+                        {/* Kode Garasi */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-sm text-slate-900 px-2 py-0.5 bg-slate-100 rounded border border-slate-200">
+                              {garageCode}
+                            </span>
+                            <Badge
+                              variant={
+                                garageType === "sepeda"
+                                  ? "sepeda"
+                                  : garageType === "mobil"
+                                  ? "mobil"
+                                  : "mobil_listrik"
+                              }
+                            >
+                              {garageType ? garageType.replace("_", " ").toUpperCase() : "GARASI"}
+                            </Badge>
+                          </div>
+                        </td>
 
-                      {/* Kendaraan */}
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-slate-800">{rental.vehicleBrandType}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {rental.plateNumber ? `Plat: ${rental.plateNumber}` : "Sepeda Gowes"}
-                        </div>
-                      </td>
+                        {/* Penyewa */}
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-900">{userName}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {userEmail} {userPhone ? `• ${userPhone}` : ""}
+                          </div>
+                        </td>
 
-                      {/* Periode Sewa */}
-                      <td className="py-3 px-4 font-mono text-[11px]">
-                        <div className="text-slate-500">
-                          Mulai: {formatDate(rental.startDate)}
-                        </div>
-                        <div className="text-slate-900 font-bold flex items-center gap-1">
-                          <span>Selesai: {formatDate(rental.endDate)}</span>
-                        </div>
-                      </td>
+                        {/* Kendaraan */}
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-slate-800">{rental.vehicleBrandType}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {rental.plateNumber ? `Plat: ${rental.plateNumber}` : "Sepeda Gowes"}
+                          </div>
+                        </td>
 
-                      {/* Tarif Harian */}
-                      <td className="py-3 px-4 text-right font-mono font-semibold tabular-nums text-slate-900">
-                        {formatRupiah(rental.garage.dailyPrice)}
-                      </td>
+                        {/* Periode Sewa */}
+                        <td className="py-3 px-4 font-mono text-[11px]">
+                          <div className="text-slate-500">
+                            Mulai: {formatDate(rental.startDate)}
+                          </div>
+                          <div className="text-slate-900 font-bold flex items-center gap-1">
+                            <span>Selesai: {formatDate(rental.endDate)}</span>
+                          </div>
+                        </td>
+
+                        {/* Tarif Harian */}
+                        <td className="py-3 px-4 text-right font-mono font-semibold tabular-nums text-slate-900">
+                          {formatRupiah(dailyPrice)}
+                        </td>
 
                       {/* Bukti Bayar Status / Upload */}
                       <td className="py-3 px-4 text-center">
@@ -468,7 +475,8 @@ export default function PerpanjangSewaPage() {
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

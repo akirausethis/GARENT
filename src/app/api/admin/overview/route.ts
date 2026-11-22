@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/api-response";
@@ -25,7 +27,7 @@ export async function GET() {
     };
 
     garages.forEach((g) => {
-      const t = g.type as "sepeda" | "mobil" | "mobil_listrik";
+      const t = g.type.toLowerCase() as "sepeda" | "mobil" | "mobil_listrik";
       const s = g.status.toLowerCase() as "available" | "used";
       if (garageStats[t]) {
         garageStats[t].total += 1;
@@ -38,7 +40,7 @@ export async function GET() {
     const pendingVerificationsCount = await prisma.user.count({
       where: {
         role: "penyewa",
-        verificationStatus: "pending",
+        verificationStatus: { in: ["pending", "PENDING"] },
       },
     });
 

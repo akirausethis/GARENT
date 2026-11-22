@@ -98,6 +98,30 @@ export default function AdminOverviewPage() {
         </div>
       </div>
 
+      {/* Pending Verifications Banner */}
+      {!isLoading && (data?.pendingVerificationsCount || 0) > 0 && (
+        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-amber-900">
+                Ada {data?.pendingVerificationsCount} calon penyewa menunggu verifikasi KTP/NIK!
+              </div>
+              <div className="text-[11px] text-amber-700">
+                Penyewa baru tidak dapat melakukan pemesanan garasi sebelum Anda menyetujui identitasnya.
+              </div>
+            </div>
+          </div>
+          <Link href="/admin/verifikasi">
+            <Button size="sm" variant="secondary" className="border-amber-300 text-amber-900 hover:bg-amber-100 whitespace-nowrap">
+              Buka Antrean Verifikasi
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Top 4 KPI Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Metric 1: Total Kapasitas Garasi */}
