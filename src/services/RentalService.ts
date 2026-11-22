@@ -52,7 +52,7 @@ export interface CreateRentalParams {
   vehicle: VehicleDetailsInput;
   rentalType: RentalType;
   durationDays?: number | null;
-  paymentProofUrl: string;
+  paymentProofUrl?: string | null;
 }
 
 export interface ExtendRentalParams {
@@ -205,8 +205,11 @@ export class RentalService {
       endUTC.setUTCDate(endUTC.getUTCDate() + duration);
     } else if (rentalType === "bulanan") {
       duration = 30; // 1 bulan operasional
-      // Tanggal selesai mengikuti tanggal yang sama di bulan berikutnya
-      endUTC = new Date(Date.UTC(startYear, startMonth + 1, startDateNum));
+      // Tanggal selesai mengikuti tanggal yang sama di bulan berikutnya dengan clamping kalender
+      const targetMonth = startMonth + 1;
+      const lastDayOfTarget = new Date(Date.UTC(startYear, targetMonth + 1, 0)).getUTCDate();
+      const clampedDay = Math.min(startDateNum, lastDayOfTarget);
+      endUTC = new Date(Date.UTC(startYear, targetMonth, clampedDay));
     } else {
       throw new Error(`Tipe sewa '${rentalType}' tidak valid.`);
     }
@@ -358,7 +361,18 @@ export class RentalService {
       );
     }
 
-    const additionalCost = diffDays * dailyPrice;
+    let additionalCost = 0;
+    if (diffDays < 30) {
+      // < 30 hari = Harian (tambahan_hari * harga_sewa_harian)
+      additionalCost = diffDays * dailyPrice;
+    } else if (diffDays === 30) {
+      // = 30 hari = 1 Bulan (25 * harga_sewa_harian)
+      additionalCost = 25 * dailyPrice;
+    } else {
+      // > 30 hari = dihitung per bulan (Math.ceil(tambahan_hari / 30) * 25 * dailyPrice)
+      const months = Math.ceil(diffDays / 30);
+      additionalCost = months * 25 * dailyPrice;
+    }
 
     return {
       oldEndDate: oldUTC.toISOString().split("T")[0],
@@ -433,7 +447,7 @@ export class RentalService {
           rentalCost: quote.rentalCost,
           electricityCost: quote.electricityCost,
           totalCost: quote.totalCost,
-          paymentProofUrl,
+          paymentProofUrl: paymentProofUrl || null,
           status: "active",
         },
       });

@@ -268,12 +268,7 @@ export default function SewaBaruPage() {
     }
 
     if (rentalType === "harian" && (durationDays < 1 || durationDays > 29)) {
-      setSubmitError("Durasi sewa harian harus antara 1 sampai 29 hari.");
-      return;
-    }
-
-    if (!paymentProofFile) {
-      setSubmitError("Unggah bukti pelunasan biaya sewa (gambar JPG/PNG/WEBP) sebelum mengajukan.");
+      setSubmitError("Durasi sewa harian harus antara 1 sampai 29 hari (kurang dari 30 hari).");
       return;
     }
 
@@ -281,23 +276,33 @@ export default function SewaBaruPage() {
 
     try {
       const formData = new FormData();
+      formData.append("garasiId", selectedGarageId);
       formData.append("garageId", selectedGarageId);
+      formData.append("tipeKendaraan", vehicleType);
       formData.append("vehicleType", vehicleType);
       if (vehicleType !== "sepeda") {
+        formData.append("nomorPlat", plateNumber.trim().toUpperCase());
         formData.append("plateNumber", plateNumber.trim().toUpperCase());
       }
+      formData.append("merekTipe", vehicleBrandType.trim());
       formData.append("vehicleBrandType", vehicleBrandType.trim());
       if (vehicleType === "mobil_listrik") {
+        formData.append("kapasitasListrikKwh", String(maxBatteryKwh));
         formData.append("maxBatteryKwh", String(maxBatteryKwh));
         formData.append("currentBatteryKwh", String(currentBatteryKwh));
       }
+      formData.append("tipeSewa", rentalType);
       formData.append("rentalType", rentalType);
       if (rentalType === "harian") {
+        formData.append("jumlahHari", String(durationDays));
         formData.append("durationDays", String(durationDays));
       }
-      formData.append("paymentProof", paymentProofFile);
+      if (paymentProofFile) {
+        formData.append("buktiPelunasan", paymentProofFile);
+        formData.append("paymentProof", paymentProofFile);
+      }
 
-      const res = await fetch("/api/penyewa/sewa-baru", {
+      const res = await fetch("/api/penyewa/sewa", {
         method: "POST",
         body: formData,
       });
@@ -598,11 +603,11 @@ export default function SewaBaruPage() {
             </CardContent>
           </Card>
 
-          {/* Card 3: Periode Sewa & Bukti Pelunasan */}
+          {/* Card 3: Periode Sewa & Verifikasi Pembayaran */}
           <Card>
             <CardHeader
-              title="3. Durasi Sewa & Bukti Pelunasan"
-              subtitle="Tentukan opsi harian (1-29 hari) atau bulanan (25x harian), lalu lampirkan bukti pembayaran"
+              title="3. Durasi Sewa & Pembayaran"
+              subtitle="Tentukan opsi harian (1-29 hari) atau bulanan (25x harian). Bukti bayar diverifikasi oleh Admin."
             />
             <CardContent className="space-y-4">
               {/* Opsi Sewa: Harian vs Bulanan */}
@@ -673,15 +678,26 @@ export default function SewaBaruPage() {
                   </div>
                   <p className="text-[11px] leading-relaxed">
                     Sewa bulanan berlangsung tepat 1 bulan kalender (misal mulai hari ini, berakhir pada tanggal yang sama di bulan berikutnya).
-                    Biaya dihitung otomatis setara <strong>25 &times; tarif harian</strong>. Jika ingin menyewa lebih dari 1 bulan, silakan ajukan sewa baru kembali di akhir periode.
+                    Biaya dihitung otomatis setara <strong>25 &times; tarif harian</strong>.
                   </p>
                 </div>
               )}
 
-              {/* Upload Bukti Pembayaran */}
+              {/* Ketentuan Verifikasi Bukti Pembayaran oleh Admin */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 space-y-1.5">
+                <div className="font-semibold flex items-center gap-1.5 text-amber-800">
+                  <Info className="w-3.5 h-3.5" />
+                  <span>Alur Verifikasi Pembayaran oleh Admin</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-amber-800">
+                  Pengajuan sewa dapat langsung dikirimkan. Bukti pelunasan pembayaran akan diverifikasi dan diunggah langsung oleh <strong>Admin operasional</strong> ke sistem setelah transfer Anda diterima. Anda juga dapat melampirkan berkas bukti di bawah ini secara opsional.
+                </p>
+              </div>
+
+              {/* Upload Bukti Pembayaran (Opsional untuk Penyewa) */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-medium text-slate-700">
-                  Bukti Pelunasan Biaya <span className="text-red-500">*</span>
+                  Lampiran Bukti Transfer <span className="text-slate-400 font-normal">(Opsional)</span>
                 </label>
                 <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer relative">
                   <input
@@ -689,14 +705,13 @@ export default function SewaBaruPage() {
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleFileChange}
                     className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    required
                   />
                   <Upload className="w-6 h-6 text-slate-400 mx-auto mb-1.5" />
                   <div className="text-xs font-medium text-slate-700">
-                    {paymentProofFile ? paymentProofFile.name : "Klik atau seret file struk / bukti transfer ke sini"}
+                    {paymentProofFile ? paymentProofFile.name : "Klik atau seret file struk / bukti transfer ke sini (opsional)"}
                   </div>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    Format JPG, PNG, atau WEBP. Maksimal 5 MB. Disimpan di Supabase Storage.
+                    Format JPG, PNG, atau WEBP. Maksimal 5 MB.
                   </p>
                 </div>
 

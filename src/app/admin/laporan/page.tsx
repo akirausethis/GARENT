@@ -148,17 +148,24 @@ export default function LaporanSewaPage() {
       const params = new URLSearchParams();
 
       if (filterMode === "month") {
+        params.append("mode", "per_bulan");
+        params.append("tahun", String(selectedYear));
+        params.append("bulan", String(selectedMonth));
         params.append("year", String(selectedYear));
         params.append("month", String(selectedMonth));
       } else if (filterMode === "date" && specificDate) {
+        params.append("mode", "per_hari");
         params.append("specificDate", specificDate);
+        params.append("tanggal", specificDate);
       }
 
       if (selectedGarageType !== "ALL") {
+        params.append("tipeGarasi", selectedGarageType);
         params.append("garageType", selectedGarageType);
       }
 
       if (selectedUserId !== "ALL") {
+        params.append("penyewaId", selectedUserId);
         params.append("userId", selectedUserId);
       }
 

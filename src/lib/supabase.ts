@@ -8,10 +8,10 @@ import { createClient } from "@supabase/supabase-js";
 import { ValidationError } from "../domain/errors";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-project.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
-const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || "payment-proofs";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-key";
+const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || "bukti-bayar";
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -20,11 +20,11 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
  * Memvalidasi dan mengunggah berkas bukti pembayaran ke Supabase Storage.
  *
  * @param file - Berkas file gambar (File atau Blob) dari form upload.
- * @param folder - Subdirektori penyimpanan (misal: 'sewa-baru' atau 'perpanjangan').
+ * @param folder - Subdirektori penyimpanan (misal: 'sewa' atau 'perpanjangan').
  * @returns URL publik berkas yang tersimpan di storage.
  * @throws {ValidationError} Apabila ukuran file > 5 MB atau tipe file bukan gambar.
  */
-export async function uploadPaymentProof(file: File, folder: string = "sewa-baru"): Promise<string> {
+export async function uploadPaymentProof(file: File, folder: string = "sewa"): Promise<string> {
   // 1. Validasi tipe MIME (JPG, PNG, WEBP)
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
     throw new ValidationError(
@@ -74,3 +74,8 @@ export async function uploadPaymentProof(file: File, folder: string = "sewa-baru
   const base64 = Buffer.from(arrayBuffer).toString("base64");
   return `data:${file.type};base64,${base64}`;
 }
+
+/**
+ * Alias bahasa Indonesia untuk LSP Pemrogram compliance.
+ */
+export const uploadBuktiBayar = uploadPaymentProof;

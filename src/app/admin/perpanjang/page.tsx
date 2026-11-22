@@ -33,6 +33,7 @@ interface ActiveRental {
   endDate: string;
   rentalCost: number;
   totalCost: number;
+  paymentProofUrl?: string | null;
   status: string;
   user: {
     id: string;
@@ -69,12 +70,18 @@ export default function PerpanjangSewaPage() {
   async function fetchActiveRentals() {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/admin/perpanjang/active");
+      const res = await fetch("/api/admin/perpanjang");
       if (res.ok) {
         const json = await res.json();
-        setActiveRentals(json.data?.activeRentals || []);
+        setActiveRentals(json.data?.activeRentals || json.data?.rentals || []);
       } else {
-        setErrorMessage("Gagal memuat daftar sewa garasi aktif.");
+        const fallback = await fetch("/api/admin/perpanjang/active");
+        if (fallback.ok) {
+          const json = await fallback.json();
+          setActiveRentals(json.data?.activeRentals || []);
+        } else {
+          setErrorMessage("Gagal memuat daftar sewa garasi aktif.");
+        }
       }
     } catch {
       setErrorMessage("Terjadi gangguan jaringan saat memuat data garasi aktif.");
@@ -115,8 +122,90 @@ export default function PerpanjangSewaPage() {
       return { additionalDays: 0, additionalCost: 0, isInvalid: true };
     }
 
-    const additionalCost = diffDays * Number(selectedRental.garage.dailyPrice);
+    const daily = Number(selectedRental.garage.dailyPrice);
+    let additionalCost = 0;
+
+    if (diffDays < 30) {
+      // < 30 hari = tarif harian
+      additionalCost = diffDays * daily;
+    } else if (diffDays === 30) {
+      // = 30 hari = tarif 1 bulan flat (25x harian)
+      additionalCost = 25 * daily;
+    } else {
+      // > 30 hari = dihitung per bulan penuh (Math.ceil(diffDays / 30) * 25 * daily)
+      const months = Math.ceil(diffDays / 30);
+      additionalCost = months * 25 * daily;
+    }
+
     return { additionalDays: diffDays, additionalCost, isInvalid: false };
+  };
+
+  // State Modal Upload Bukti Bayar (Admin)
+  const [proofRental, setProofRental] = useState<ActiveRental | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
+  const [proofError, setProofError] = useState<string | null>(null);
+
+  const handleOpenProofModal = (rental: ActiveRental) => {
+    setProofRental(rental);
+    setProofError(null);
+    setProofFile(null);
+    setProofPreview(null);
+  };
+
+  const handleProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+        setProofError("Format bukti bayar harus JPEG, PNG, atau WEBP.");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setProofError("Ukuran berkas gambar maksimal 5 MB.");
+        return;
+      }
+      setProofFile(file);
+      setProofPreview(URL.createObjectURL(file));
+      setProofError(null);
+    }
+  };
+
+  const handleSubmitProof = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!proofRental || !proofFile) {
+      setProofError("Pilih file gambar bukti bayar terlebih dahulu.");
+      return;
+    }
+
+    setIsUploadingProof(true);
+    setProofError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("rentalId", proofRental.id);
+      formData.append("paymentProof", proofFile);
+
+      const res = await fetch("/api/admin/sewa/upload-bukti", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        setProofError(json.error || "Gagal mengunggah bukti bayar.");
+        setIsUploadingProof(false);
+        return;
+      }
+
+      setSuccessMessage(`Bukti pelunasan untuk garasi ${proofRental.garage.code} berhasil diunggah.`);
+      setProofRental(null);
+      await fetchActiveRentals();
+    } catch {
+      setProofError("Terjadi kesalahan jaringan saat mengunggah bukti bayar.");
+    } finally {
+      setIsUploadingProof(false);
+    }
   };
 
   const handleOpenExtendModal = (rental: ActiveRental) => {
@@ -285,6 +374,7 @@ export default function PerpanjangSewaPage() {
                     <th className="py-2.5 px-4 font-semibold">KENDARAAN</th>
                     <th className="py-2.5 px-4 font-semibold">PERIODE SEWA AKTIF</th>
                     <th className="py-2.5 px-4 font-semibold text-right">TARIF / HARI</th>
+                    <th className="py-2.5 px-4 font-semibold text-center">BUKTI BAYAR</th>
                     <th className="py-2.5 px-4 font-semibold text-right">AKSI</th>
                   </tr>
                 </thead>
@@ -340,6 +430,31 @@ export default function PerpanjangSewaPage() {
                       {/* Tarif Harian */}
                       <td className="py-3 px-4 text-right font-mono font-semibold tabular-nums text-slate-900">
                         {formatRupiah(rental.garage.dailyPrice)}
+                      </td>
+
+                      {/* Bukti Bayar Status / Upload */}
+                      <td className="py-3 px-4 text-center">
+                        {rental.paymentProofUrl ? (
+                          <a
+                            href={rental.paymentProofUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Lihat Bukti</span>
+                          </a>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleOpenProofModal(rental)}
+                            icon={<Upload className="w-3 h-3 text-amber-600" />}
+                            className="text-amber-800 border-amber-300 bg-amber-50 hover:bg-amber-100 text-[11px] py-1"
+                          >
+                            Upload Bukti
+                          </Button>
+                        )}
                       </td>
 
                       {/* Aksi Extend */}
@@ -504,6 +619,101 @@ export default function PerpanjangSewaPage() {
                 icon={<CheckCircle2 className="w-4 h-4" />}
               >
                 Simpan Perpanjangan & Update Status
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Modal Upload Bukti Pelunasan Sewa (Admin) */}
+      <Modal
+        isOpen={!!proofRental}
+        onClose={() => setProofRental(null)}
+        title="Upload Bukti Pelunasan Sewa (Admin)"
+      >
+        {proofRental && (
+          <form onSubmit={handleSubmitProof} className="space-y-4">
+            {proofError && (
+              <Alert type="error" title="Gagal Upload Bukti">
+                {proofError}
+              </Alert>
+            )}
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-700">Unit Garasi</span>
+                <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {proofRental.garage.code} ({proofRental.garage.type.toUpperCase()})
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Penyewa</span>
+                <span className="font-medium text-slate-900">{proofRental.user.fullName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Total Biaya Sewa</span>
+                <span className="font-mono font-semibold text-slate-900">
+                  {formatRupiah(proofRental.totalCost)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-700">
+                Pilih Berkas Bukti Pembayaran <span className="text-red-500">*</span>
+              </label>
+              <div className="border-2 border-dashed border-slate-300 rounded-lg p-3 text-center hover:bg-slate-50 transition-colors cursor-pointer relative">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleProofFileChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  required
+                />
+                <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1" />
+                <div className="text-xs font-medium text-slate-700">
+                  {proofFile ? proofFile.name : "Klik atau pilih file bukti transfer / kwitansi"}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  Format JPG, PNG, WEBP (maks. 5 MB). Diunggah ke Supabase Storage (bukti-bayar).
+                </p>
+              </div>
+
+              {proofPreview && (
+                <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg inline-flex items-center gap-2 text-xs">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={proofPreview}
+                    alt="Pratinjau Bukti Bayar"
+                    className="w-12 h-12 object-cover rounded border border-slate-200"
+                  />
+                  <div>
+                    <div className="font-medium text-slate-900">{proofFile?.name}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      {(proofFile!.size / 1024).toFixed(1)} KB
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setProofRental(null)}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                isLoading={isUploadingProof}
+                disabled={!proofFile || isUploadingProof}
+                icon={<CheckCircle2 className="w-4 h-4" />}
+              >
+                Simpan & Verifikasi Bukti
               </Button>
             </div>
           </form>

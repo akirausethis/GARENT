@@ -166,16 +166,26 @@ export class GarasiMobilListrikEntity extends GarasiEntity {
 
   /**
    * Menghitung total biaya pengisian daya listrik hingga penuh (Mandatory EV Full Charge):
-   * Biaya Listrik = Kapasitas Listrik Kendaraan (kWh) × Harga Listrik per kWh.
+   * kwhYangDiisi = kapasitasMaxKwh - currentBatteryKwh.
+   * Biaya Listrik = kwhYangDiisi × Harga Listrik per kWh.
    *
-   * @param kapasitasKwh - Kapasitas baterai mobil listrik dalam kilowatt-hour.
+   * @param kapasitasMaxKwh - Kapasitas baterai mobil listrik maksimal dalam kilowatt-hour (> 0).
+   * @param currentBatteryKwh - Kapasitas baterai saat ini (default: 0, 0 <= current <= max).
    * @returns Total biaya pengisian penuh listrik.
-   * @throws {ValidationError} Apabila kapasitas listrik bernilai <= 0.
+   * @throws {ValidationError} Apabila kapasitas baterai melanggar batasan invarian.
    */
-  public hitungBiayaIsiPenuh(kapasitasKwh: number): number {
-    if (kapasitasKwh <= 0) {
-      throw new ValidationError("Kapasitas listrik kendaraan harus bernilai lebih dari nol.");
+  public hitungBiayaIsiPenuh(kapasitasMaxKwh: number, currentBatteryKwh: number = 0): number {
+    if (kapasitasMaxKwh <= 0) {
+      throw new ValidationError("Kapasitas listrik maksimal kendaraan harus bernilai lebih dari nol.");
     }
-    return kapasitasKwh * this._hargaListrikPerKwh;
+    if (currentBatteryKwh < 0) {
+      throw new ValidationError("Kapasitas baterai saat ini tidak boleh bernilai negatif.");
+    }
+    if (currentBatteryKwh > kapasitasMaxKwh) {
+      throw new ValidationError("Kapasitas baterai saat ini tidak boleh melebihi kapasitas baterai maksimal.");
+    }
+
+    const kwhYangDiisi = kapasitasMaxKwh - currentBatteryKwh;
+    return kwhYangDiisi * this._hargaListrikPerKwh;
   }
 }

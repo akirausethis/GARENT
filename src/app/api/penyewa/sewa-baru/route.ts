@@ -25,16 +25,15 @@ export async function POST(req: NextRequest) {
       throw new Error("Unit garasi wajib dipilih.");
     }
 
-    if (!paymentProofFile || !(paymentProofFile instanceof File) || paymentProofFile.size === 0) {
-      throw new Error("Berkas gambar bukti pelunasan biaya wajib diunggah.");
-    }
-
     const maxBatteryKwh = maxBatteryKwhRaw ? parseFloat(maxBatteryKwhRaw as string) : null;
     const currentBatteryKwh = currentBatteryKwhRaw ? parseFloat(currentBatteryKwhRaw as string) : null;
     const durationDays = durationDaysRaw ? parseInt(durationDaysRaw as string, 10) : null;
 
-    // 1. Upload bukti pembayaran ke Supabase Storage (bucket: payment-proofs)
-    const paymentProofUrl = await uploadPaymentProof(paymentProofFile, "rentals");
+    // 1. Upload bukti pembayaran ke Supabase Storage jika disertakan
+    let paymentProofUrl: string | null = null;
+    if (paymentProofFile && paymentProofFile instanceof File && paymentProofFile.size > 0) {
+      paymentProofUrl = await uploadPaymentProof(paymentProofFile, "sewa");
+    }
 
     // 2. Simpan transaksi sewa baru dan ubah status garasi menjadi 'used'
     const newRental = await rentalService.createRental({

@@ -284,10 +284,22 @@ describe("RentalService — Unit Testing (Logika Bisnis Persewaan Garasi)", () =
       expect(ext.additionalCost).toBe(50000);
     });
 
-    it("should calculate additional cost for +10 days extension", () => {
+    it("should calculate additional cost for +10 days extension (< 30 days = daily rate)", () => {
       const ext = RentalService.calculateExtension(oldEndDate, "2026-12-10", dailyPrice);
       expect(ext.additionalDays).toBe(10);
       expect(ext.additionalCost).toBe(10 * 50000); // Rp 500.000
+    });
+
+    it("should calculate 1 month flat (25x daily rate) for exact +30 days extension", () => {
+      const ext = RentalService.calculateExtension(oldEndDate, "2026-12-30", dailyPrice);
+      expect(ext.additionalDays).toBe(30);
+      expect(ext.additionalCost).toBe(25 * 50000); // Rp 1.250.000 (1 bulan flat)
+    });
+
+    it("should calculate multi-month (Math.ceil(days/30) * 25x) for > 30 days extension", () => {
+      const ext = RentalService.calculateExtension(oldEndDate, "2027-01-14", dailyPrice);
+      expect(ext.additionalDays).toBe(45);
+      expect(ext.additionalCost).toBe(2 * 25 * 50000); // Rp 2.500.000 (2 bulan flat)
     });
 
     it("should throw error if new end date is same as or before old end date", () => {

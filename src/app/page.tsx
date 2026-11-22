@@ -10,7 +10,7 @@ export default async function HomePage() {
 
   if (session) {
     if (session.role?.toLowerCase() === "admin") {
-      redirect("/admin/garasi");
+      redirect("/admin");
     } else if (session.role?.toLowerCase() === "penyewa") {
       redirect("/penyewa/sewa-baru");
     }

@@ -121,27 +121,51 @@ export class GaragePricingService implements IPricingCalculator {
     }
 
     if (vehicle.tipeKendaraan === "MOBIL_LISTRIK") {
-      if (
-        vehicle.kapasitasListrikKwh === null ||
-        vehicle.kapasitasListrikKwh === undefined ||
-        vehicle.kapasitasListrikKwh <= 0
-      ) {
+      const maxKwh = vehicle.kapasitasMaxKwh ?? vehicle.kapasitasListrikKwh;
+      const curKwh = vehicle.currentBatteryKwh ?? 0;
+
+      if (maxKwh === null || maxKwh === undefined || isNaN(maxKwh) || maxKwh <= 0) {
         throw new ValidationError(
-          "Kapasitas baterai (kWh) wajib diisi dan harus bernilai lebih dari 0 untuk Mobil Listrik."
+          "Kapasitas baterai maksimal (kWh) wajib diisi dan harus bernilai lebih dari 0 untuk Mobil Listrik."
+        );
+      }
+
+      if (curKwh < 0) {
+        throw new ValidationError("Kapasitas baterai saat ini tidak boleh bernilai negatif.");
+      }
+
+      if (curKwh > maxKwh) {
+        throw new ValidationError(
+          `Kapasitas baterai saat ini (${curKwh} kWh) tidak boleh melebihi kapasitas baterai maksimal (${maxKwh} kWh).`
         );
       }
     }
   }
 
   /**
+   * Helper internal untuk menghitung penambahan 1 bulan kalender penuh
+   * dengan proteksi clamping pada akhir bulan (misal 31 Jan -> 28 Feb).
+   */
+  private addOneCalendarMonthClamped(date: Date): Date {
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+
+    const targetMonth = month + 1;
+    const lastDayOfTarget = new Date(Date.UTC(year, targetMonth + 1, 0)).getUTCDate();
+    const clampedDay = Math.min(day, lastDayOfTarget);
+
+    return new Date(Date.UTC(year, targetMonth, clampedDay));
+  }
+
+  /**
    * Mengkalkulasi rincian sewa baru:
-   * - Durasi sewa harian harus antara 1 s/d 30 hari (Boundary Value Analysis: 1..30).
-   * - Tanggal selesai dihitung secara deterministik.
-   * - Biaya sewa bulanan = 25 × Harga Sewa Harian.
-   * - Biaya sewa harian = Jumlah Hari × Harga Sewa Harian.
+   * - Durasi sewa harian harus antara 1 s/d 29 hari (1 <= jumlah_hari <= 29, i.e. < 30 hari).
+   *   Ditolak jika <= 0 atau >= 30 (jika ingin 30 hari/1 bulan wajib sewa BULANAN).
+   * - Biaya sewa bulanan = 25 × Harga Sewa Harian (durasi kalender 1 bulan dengan clamping).
    * - Biaya listrik EV (Mandatory Full Charging):
-   *   Kapasitas kWh × Harga Listrik per kWh (jika Mobil Listrik berada di Garasi E).
-   *   Bernilai 0 jika Mobil Listrik menyewa Garasi C atau kendaraan non-EV.
+   *   (kapasitasMaxKwh - currentBatteryKwh) × Harga Listrik per kWh (jika Mobil Listrik di Garasi E).
+   *   Bernilai 0 jika Mobil Listrik di Garasi C atau kendaraan non-EV.
    *
    * @param params - Parameter lengkap penyewaan garasi baru.
    * @returns Kutipan sewa terstruktur dengan rincian total.
@@ -177,39 +201,44 @@ export class GaragePricingService implements IPricingCalculator {
 
     let durasiHari = 0;
     let biayaSewa = 0;
+    let endDate: Date;
 
-    // 3. Hitung biaya sewa dasar dan durasi
+    // 3. Hitung biaya sewa dasar, durasi, dan tanggal selesai
     if (tipeSewa === "HARIAN") {
       if (jumlahHari === null || jumlahHari === undefined) {
         throw new ValidationError("Jumlah hari wajib diisi untuk tipe sewa HARIAN.");
       }
-      if (jumlahHari < 1 || jumlahHari > 30) {
+      if (jumlahHari < 1 || jumlahHari > 29) {
         throw new ValidationError(
-          `Jumlah hari sewa harian harus berada pada rentang 1 hingga 30 hari. Diterima: ${jumlahHari}`
+          `Jumlah hari sewa harian harus berada pada rentang 1 hingga 29 hari (kurang dari 30 hari). Diterima: ${jumlahHari}`
         );
       }
       durasiHari = Math.floor(jumlahHari);
       biayaSewa = durasiHari * hargaSewaHarian;
+
+      endDate = new Date(normalizedStart.getTime());
+      endDate.setUTCDate(endDate.getUTCDate() + durasiHari);
     } else if (tipeSewa === "BULANAN") {
       durasiHari = 30; // 1 bulan operasional garasi setara 30 hari
       biayaSewa = 25 * hargaSewaHarian; // Rumus baku LSP: 25x tarif harian
+
+      // Mengikuti tanggal yang sama di bulan berikutnya dengan clamping kalender
+      endDate = this.addOneCalendarMonthClamped(normalizedStart);
     } else {
       throw new ValidationError(`Tipe sewa '${tipeSewa}' tidak didukung.`);
     }
 
-    // 4. Hitung tanggal selesai
-    const endDate = new Date(normalizedStart.getTime());
-    endDate.setUTCDate(endDate.getUTCDate() + durasiHari);
-
-    // 5. Hitung biaya listrik (Mandatory EV Full Charge jika di garasi MOBIL_LISTRIK)
+    // 4. Hitung biaya listrik (Mandatory EV Full Charge jika di garasi MOBIL_LISTRIK)
     let biayaListrik = 0;
     if (vehicle.tipeKendaraan === "MOBIL_LISTRIK" && tipeGarasi === "MOBIL_LISTRIK") {
-      const kwh = vehicle.kapasitasListrikKwh ?? 0;
+      const maxKwh = vehicle.kapasitasMaxKwh ?? vehicle.kapasitasListrikKwh ?? 0;
+      const curKwh = vehicle.currentBatteryKwh ?? 0;
       const rate = hargaListrikPerKwh ?? 0;
       if (rate <= 0) {
         throw new ValidationError("Harga listrik per kWh garasi belum diatur atau tidak valid.");
       }
-      biayaListrik = kwh * rate;
+      const kwhYangDiisi = Math.max(0, maxKwh - curKwh);
+      biayaListrik = kwhYangDiisi * rate;
     }
 
     const totalBiaya = biayaSewa + biayaListrik;
@@ -228,8 +257,10 @@ export class GaragePricingService implements IPricingCalculator {
   /**
    * Mengkalkulasi biaya perpanjangan masa sewa aktif:
    * - Tanggal selesai baru harus strictly lebih besar dari tanggal selesai lama.
-   * - Tambahan hari dihitung secara presisi.
-   * - Sisa biaya = Tambahan Hari × Harga Sewa Harian (harus > 0).
+   * - Klasifikasi durasi perpanjangan:
+   *   * < 30 tambahan hari = dihitung Harian (tambahan_hari * harga_sewa_harian).
+   *   * = 30 tambahan hari = dihitung 1 Bulan (25 * harga_sewa_harian).
+   *   * > 30 tambahan hari (misal 31-60 hari) = dihitung per bulan penuh (Math.ceil(tambahan_hari / 30) * 25 * harga_sewa_harian).
    *
    * @param params - Parameter perpanjangan sewa.
    * @returns Kutipan perpanjangan dengan tambahan hari dan sisa biaya.
@@ -265,7 +296,18 @@ export class GaragePricingService implements IPricingCalculator {
       );
     }
 
-    const sisaBiaya = diffDays * hargaSewaHarian;
+    let sisaBiaya = 0;
+    if (diffDays < 30) {
+      // < 30 tambahan hari = tarif harian
+      sisaBiaya = diffDays * hargaSewaHarian;
+    } else if (diffDays === 30) {
+      // = 30 tambahan hari = 1 Bulan (25x harian)
+      sisaBiaya = 25 * hargaSewaHarian;
+    } else {
+      // > 30 tambahan hari (misal 31-60 hari = 2 bulan, dst)
+      const bulan = Math.ceil(diffDays / 30);
+      sisaBiaya = bulan * 25 * hargaSewaHarian;
+    }
 
     return {
       tanggalSelesaiLama: normalizedOldEnd,

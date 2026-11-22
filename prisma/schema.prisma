@@ -71,7 +71,7 @@ model Rental {
   rentalCost         Decimal            @db.Decimal(12, 2) @map("rental_cost")
   electricityCost    Decimal            @default(0) @db.Decimal(12, 2) @map("electricity_cost")
   totalCost          Decimal            @db.Decimal(12, 2) @map("total_cost")
-  paymentProofUrl    String             @map("payment_proof_url")
+  paymentProofUrl    String?            @map("payment_proof_url")
   status             String             @default("active") @map("status") // 'active' | 'completed' | 'extended'
   createdAt          DateTime           @default(now()) @map("created_at")
 

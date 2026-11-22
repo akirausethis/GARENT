@@ -47,7 +47,7 @@ interface RentalRecord {
   rentalCost: number;
   electricityCost: number;
   totalCost: number;
-  paymentProofUrl: string;
+  paymentProofUrl?: string | null;
   status: "active" | "extended" | "completed";
   createdAt: string;
   garage: {
@@ -79,12 +79,19 @@ export default function RiwayatSewaPage() {
     async function fetchRentals() {
       setIsLoading(true);
       try {
-        const res = await fetch("/api/penyewa/riwayat");
+        const res = await fetch("/api/penyewa/sewa");
         if (res.ok) {
           const json = await res.json();
-          setRentals(json.data?.rentals || []);
+          setRentals(json.data?.sewa || json.data?.rentals || []);
         } else {
-          setErrorMessage("Gagal memuat riwayat penyewaan.");
+          // fallback to /api/penyewa/riwayat
+          const fallbackRes = await fetch("/api/penyewa/riwayat");
+          if (fallbackRes.ok) {
+            const fallbackJson = await fallbackRes.json();
+            setRentals(fallbackJson.data?.rentals || []);
+          } else {
+            setErrorMessage("Gagal memuat riwayat penyewaan.");
+          }
         }
       } catch {
         setErrorMessage("Terjadi kesalahan jaringan saat memuat data.");
@@ -298,19 +305,25 @@ export default function RiwayatSewaPage() {
                         </div>
 
                         <div className="flex items-center gap-2 mt-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPreviewImage({
-                                url: r.paymentProofUrl,
-                                title: `Bukti Pembayaran Awal — Garasi ${r.garage.code}`,
-                              })
-                            }
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-steel-700 hover:text-steel-900 underline"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            <span>Bukti Bayar</span>
-                          </button>
+                          {r.paymentProofUrl ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewImage({
+                                  url: r.paymentProofUrl!,
+                                  title: `Bukti Pembayaran Awal — Garasi ${r.garage.code}`,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-steel-700 hover:text-steel-900 underline"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Bukti Bayar</span>
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-mono">
+                              Verifikasi Admin
+                            </span>
+                          )}
 
                           {hasExtensions && (
                             <button

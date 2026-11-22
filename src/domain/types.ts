@@ -23,7 +23,9 @@ export interface VehicleInput {
   tipeKendaraan: TipeKendaraan;
   nomorPlat?: string | null;
   merekTipe: string;
-  kapasitasListrikKwh?: number | null;
+  kapasitasListrikKwh?: number | null; // legacy alias
+  kapasitasMaxKwh?: number | null;     // Kapasitas baterai maksimal (kWh)
+  currentBatteryKwh?: number | null;   // Kapasitas baterai saat ini (kWh)
 }
 
 /**

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  LayoutDashboard,
   KeyRound,
   FileCheck2,
   CalendarClock,
@@ -59,6 +60,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     {
+      label: "Ringkasan Operasional",
+      href: "/admin",
+      icon: LayoutDashboard,
+      desc: "Overview & metrik sistem",
+    },
+    {
       label: "Inventaris Garasi",
       href: "/admin/garasi",
       icon: KeyRound,
@@ -91,7 +98,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div>
           {/* Header Brand */}
           <div className="p-4 border-b border-slate-100">
-            <Link href="/admin/garasi" className="flex items-center gap-2.5">
+            <Link href="/admin" className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded bg-slate-900 text-white flex items-center justify-center font-mono font-bold text-sm shadow-hairline">
                 G
               </div>
@@ -187,13 +194,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex-1 md:ml-[240px] flex flex-col min-h-screen">
         {/* Mobile Topbar */}
         <header className="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between sticky top-0 z-20">
-          <Link href="/admin/garasi" className="flex items-center gap-2">
+          <Link href="/admin" className="flex items-center gap-2">
             <div className="w-7 h-7 rounded bg-slate-900 text-white flex items-center justify-center font-mono font-bold text-xs">
               G
             </div>
             <span className="font-bold text-sm tracking-tight text-slate-900">GARENT Admin</span>
           </Link>
           <div className="flex items-center gap-1.5">
+            <Link
+              href="/admin"
+              className={`text-xs px-2 py-1 rounded font-medium ${
+                pathname === "/admin" ? "bg-slate-900 text-white" : "text-slate-600"
+              }`}
+            >
+              Overview
+            </Link>
             <Link
               href="/admin/garasi"
               className={`text-xs px-2 py-1 rounded font-medium ${
