@@ -84,8 +84,13 @@ export class GarageService {
     currentMax: number,
     quantity: number
   ): GeneratedBatchResult {
-    if (quantity <= 0) {
-      throw new ValidationError("Jumlah garasi yang dibuat harus minimal 1 unit.");
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new ValidationError("Jumlah garasi yang dibuat harus minimal 1 unit integer.");
+    }
+    if (quantity > this.MAX_UNITS_PER_TYPE) {
+      throw new CapacityExceededError(
+        `Jumlah pembuatan garasi tidak boleh melebihi batas maksimum ${this.MAX_UNITS_PER_TYPE} unit per tipe.`
+      );
     }
     if (currentMax < 0) {
       throw new ValidationError("Nomor urut maksimum saat ini tidak boleh bernilai negatif.");
@@ -203,5 +208,55 @@ export class GarageService {
       },
       orderBy: [{ type: "asc" }, { sequenceNumber: "asc" }],
     });
+  }
+
+  // ============================================================================
+  // LSP Service Layer Compatibility Methods
+  // ============================================================================
+
+  public getPrefixByType(type: GarageType): "S" | "C" | "E" {
+    return GarageService.getPrefix(type) as "S" | "C" | "E";
+  }
+
+  public parseCodeNumber(code: string): number {
+    const match = /^[SCE](\d+)$/.exec(code.trim().toUpperCase());
+    if (!match) {
+      throw new Error(`Format kode garasi tidak valid: ${code}`);
+    }
+    return parseInt(match[1], 10);
+  }
+
+  public formatGarageCode(type: GarageType, sequenceNumber: number): string {
+    return GarageService.generateGarageCode(type, sequenceNumber);
+  }
+
+  public generateIncrementalCodes(
+    type: GarageType,
+    quantity: number,
+    lastCode?: string | null
+  ): string[] {
+    const currentMax = lastCode ? this.parseCodeNumber(lastCode) : 0;
+    return GarageService.generateBatchCodes(type, currentMax, quantity).codes;
+  }
+
+  public getAllowedGarageTypes(vehicleType: string): GarageType[] {
+    switch (vehicleType.toLowerCase()) {
+      case "sepeda":
+      case "sepeda_motor":
+        return ["sepeda"];
+      case "mobil":
+        return ["mobil"];
+      case "mobil_listrik":
+        return ["mobil", "mobil_listrik"];
+      default:
+        throw new Error(`Tipe kendaraan tidak valid: ${vehicleType}`);
+    }
+  }
+
+  public isVehicleCompatibleWithGarage(
+    vehicleType: string,
+    garageType: GarageType
+  ): boolean {
+    return this.getAllowedGarageTypes(vehicleType).includes(garageType);
   }
 }

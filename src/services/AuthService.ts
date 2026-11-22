@@ -193,4 +193,77 @@ export class AuthService {
       orderBy: { createdAt: "desc" },
     });
   }
+
+  // ============================================================================
+  // LSP Service Layer Compatibility Methods
+  // ============================================================================
+
+  public validateLoginInput(email: string, password: string): void {
+    const cleanEmail = email?.trim() ?? "";
+    const cleanPassword = password ?? "";
+
+    if (!cleanEmail) {
+      throw new Error("Email wajib diisi.");
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) {
+      throw new Error("Format email tidak valid (harus mengandung @ dan domain yang benar).");
+    }
+    if (!cleanPassword || cleanPassword.length < 6) {
+      throw new Error("Password minimal harus 6 karakter.");
+    }
+  }
+
+  public validateRegistrationInput(input: {
+    nik: string;
+    fullName: string;
+    phone: string;
+    email: string;
+    password: string;
+    confirmPassword?: string;
+  }): void {
+    const nik = input.nik?.trim() ?? "";
+    const fullName = input.fullName?.trim() ?? "";
+    const phone = input.phone?.trim() ?? "";
+    const email = input.email?.trim() ?? "";
+    const password = input.password ?? "";
+
+    if (!nik || !/^\d{8,20}$/.test(nik)) {
+      throw new Error("NIK (No. KTP) wajib diisi berupa angka 8-20 digit.");
+    }
+    if (!fullName || fullName.length < 2) {
+      throw new Error("Nama lengkap wajib diisi minimal 2 karakter.");
+    }
+    if (!phone || !/^[0-9+\-\s]{8,20}$/.test(phone)) {
+      throw new Error("Nomor telepon tidak valid (minimal 8 digit).");
+    }
+    if (!email || !/^[a-zA-Z0-9._%+-]+@gmail\.com$/i.test(email)) {
+      throw new Error("Email harus menggunakan format @gmail.com yang valid.");
+    }
+    if (!password || password.length < 6) {
+      throw new Error("Password minimal harus 6 karakter.");
+    }
+    if (input.confirmPassword !== undefined && input.confirmPassword !== password) {
+      throw new Error("Konfirmasi password tidak cocok.");
+    }
+  }
+
+  public canTenantRent(user: { role: string; status?: string; verificationStatus?: string }): boolean {
+    const status = user.status || user.verificationStatus;
+    return user.role === "penyewa" && status === "approved";
+  }
+
+  public ensureTenantApproved(user: { role: string; status?: string; verificationStatus?: string }): void {
+    const status = user.status || user.verificationStatus;
+    if (user.role !== "penyewa") {
+      throw new Error("Hanya akun dengan role penyewa yang dapat menyewa garasi.");
+    }
+    if (status === "pending") {
+      throw new Error(
+        "Akun Anda berstatus pending dan belum diverifikasi Admin. Anda belum dapat menyewa garasi."
+      );
+    }
+    if (status === "rejected") {
+      throw new Error("Akun Anda ditolak oleh Admin sehingga tidak dapat menyewa garasi.");
+    }
+  }
 }

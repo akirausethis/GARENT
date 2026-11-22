@@ -143,6 +143,27 @@ export class GaragePricingService implements IPricingCalculator {
   }
 
   /**
+   * Menghitung total hari dalam bulan tertentu.
+   */
+  public static getDaysInMonth(dateInput: string | Date): number {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) {
+      throw new ValidationError("Format tanggal tidak valid.");
+    }
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth() + 1;
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
+  }
+
+  /**
+   * Menghitung batas maksimum durasi sewa harian (total hari dalam bulan - 1).
+   */
+  public static getMaxDailyDuration(startDate?: string | Date): number {
+    const target = startDate ? new Date(startDate) : new Date();
+    return GaragePricingService.getDaysInMonth(target) - 1;
+  }
+
+  /**
    * Helper internal untuk menghitung penambahan 1 bulan kalender penuh
    * dengan proteksi clamping pada akhir bulan (misal 31 Jan -> 28 Feb).
    */
@@ -160,8 +181,8 @@ export class GaragePricingService implements IPricingCalculator {
 
   /**
    * Mengkalkulasi rincian sewa baru:
-   * - Durasi sewa harian harus antara 1 s/d 29 hari (1 <= jumlah_hari <= 29, i.e. < 30 hari).
-   *   Ditolak jika <= 0 atau >= 30 (jika ingin 30 hari/1 bulan wajib sewa BULANAN).
+   * - Durasi sewa harian harus antara 1 s/d (total hari dalam bulan - 1).
+   *   Ditolak jika <= 0 atau > maxDailyDuration (jika ingin 1 bulan penuh wajib sewa BULANAN).
    * - Biaya sewa bulanan = 25 × Harga Sewa Harian (durasi kalender 1 bulan dengan clamping).
    * - Biaya listrik EV (Mandatory Full Charging):
    *   (kapasitasMaxKwh - currentBatteryKwh) × Harga Listrik per kWh (jika Mobil Listrik di Garasi E).
@@ -208,9 +229,10 @@ export class GaragePricingService implements IPricingCalculator {
       if (jumlahHari === null || jumlahHari === undefined) {
         throw new ValidationError("Jumlah hari wajib diisi untuk tipe sewa HARIAN.");
       }
-      if (jumlahHari < 1 || jumlahHari > 29) {
+      const maxDays = GaragePricingService.getMaxDailyDuration(normalizedStart);
+      if (jumlahHari < 1 || jumlahHari > maxDays) {
         throw new ValidationError(
-          `Jumlah hari sewa harian harus berada pada rentang 1 hingga 29 hari (kurang dari 30 hari). Diterima: ${jumlahHari}`
+          `Jumlah hari sewa harian harus berada pada rentang 1 hingga ${maxDays} hari (kurang dari 1 bulan). Diterima: ${jumlahHari}`
         );
       }
       durasiHari = Math.floor(jumlahHari);
